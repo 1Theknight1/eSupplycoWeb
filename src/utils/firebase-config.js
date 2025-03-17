@@ -6,8 +6,8 @@ const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL:process.env.DATABASE_URL , 
-  storageBucket: process.env.STORAGE_BUCKET,
+  databaseURL:"https://esupplyco-5f640-default-rtdb.asia-southeast1.firebasedatabase.app" , 
+  storageBucket: "esupplyco-5f640.firebasestorage.app",
 });
 console.log(process.env.DATABASE_URL)
 
