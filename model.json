@@ -1,0 +1,17 @@
+{
+    "stock_updates": {
+      "supplyco_001": {
+        "product_12345": {
+          "available": true,
+          "stock": 200
+        }
+      },
+      "supplyco_002": {
+        "product_12345": {
+          "available": true,
+          "stock": 150
+        }
+      }
+    }
+  }
+  
