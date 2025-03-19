@@ -208,3 +208,30 @@ exports.addSlot= async (req, res) => {
         return res.status(500).json({ error: "Internal server error" });
     }
 };
+
+//walkin all slots for supplyco
+exports.getAllSlotsForSUpplyco= async (req, res) => {
+  try {
+    const { supplycoId } = req.params;
+
+    // Reference to the 'bookings' subcollection
+    const bookingsRef = db.collection("supplycos").doc(supplycoId).collection("bookings");
+    const bookingsSnapshot = await bookingsRef.get();
+
+    if (bookingsSnapshot.empty) {
+      return res.status(404).json({ message: "No bookings found." });
+    }
+
+    // Extract all dates and slot details
+    const bookingsData = {};
+    bookingsSnapshot.forEach((doc) => {
+      bookingsData[doc.id] = doc.data(); // doc.id is the date
+    });
+
+    return res.status(200).json({ supplycoId, bookings: bookingsData });
+
+  } catch (error) {
+    console.error("Error fetching booking data:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+};
