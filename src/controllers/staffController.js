@@ -258,3 +258,56 @@ exports.getSupplycoDetails= async (req, res) => {
       return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
+//check if user booked a slot
+exports.getSlotByCardNumber= async (req, res) => {
+  try {
+    const { cardNumber } = req.body;
+
+    if (!cardNumber) {
+      return res.status(400).json({ error: "Card number is required" });
+    }
+
+    const supplycosSnapshot = await db.collection("supplycos").get();
+    let result = [];
+
+    for (const supplycoDoc of supplycosSnapshot.docs) {
+      const supplycoId = supplycoDoc.id;
+      const bookingsRef = supplycoDoc.ref.collection("bookings");
+      const bookingDatesSnapshot = await bookingsRef.get();
+
+      for (const dateDoc of bookingDatesSnapshot.docs) {
+        const date = dateDoc.id;
+        const slotsData = dateDoc.data();
+
+        for (const [slotId, slotInfo] of Object.entries(slotsData)) {
+          if (slotInfo.users && Array.isArray(slotInfo.users)) {
+            const user = slotInfo.users.find(
+              (u) =>
+                (typeof u === "object" && u.cardNumber === cardNumber) ||
+                u === cardNumber
+            );
+            if (user) {
+              result.push({
+                supplycoId,
+                slotId,
+                date,
+                success: true,
+                message: "Slot found successfully",
+              });
+            }
+          }
+        }
+      }
+    }
+
+    if (result.length > 0) {
+      return res.status(200).json(result);
+    } else {
+      return res.status(404).json({ error: "No slots found for this card number" });
+    }
+  } catch (error) {
+    console.error("Error fetching slot:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
