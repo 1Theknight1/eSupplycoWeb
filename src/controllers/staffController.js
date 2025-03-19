@@ -154,3 +154,57 @@ exports.getSupplycoOrders= async (req, res) => {
       return res.status(500).json({ error: "Internal Server Error", details: error.message });
     }
   };
+
+
+  //slot add
+  const generateSlotId = async (supplycoId) => {
+    const slotsRef = db.collection("supplycos").doc(supplycoId).collection("slots");
+    const snapshot = await slotsRef.get();
+
+    let maxSlotNumber = 0;
+
+    snapshot.forEach((doc) => {
+        const slotId = doc.id; // Example: slot_03
+        const match = slotId.match(/slot_(\d+)/);
+        if (match) {
+            const slotNumber = parseInt(match[1], 10);
+            if (slotNumber > maxSlotNumber) {
+                maxSlotNumber = slotNumber;
+            }
+        }
+    });
+
+    return `slot_${(maxSlotNumber + 1).toString().padStart(2, "0")}`;
+};
+
+// API to add a walk-in slot
+exports.addSlot= async (req, res) => {
+    try {
+        const { supplycoId } = req.params;
+        const { start_time, end_time, capacity, booked_count = 0, status = "available" } = req.body;
+
+        if (!start_time || !end_time || !capacity) {
+            return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        // Generate new slot ID
+        const newSlotId = await generateSlotId(supplycoId);
+
+        // Slot data
+        const slotData = {
+            start_time,
+            end_time,
+            capacity,
+            booked_count,
+            status,
+        };
+
+        // Add slot to Firestore
+        await db.collection("supplycos").doc(supplycoId).collection("slots").doc(newSlotId).set(slotData);
+
+        return res.status(201).json({ message: "Walk-in slot added successfully", slotId: newSlotId });
+    } catch (error) {
+        console.error("Error adding walk-in slot:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+};
