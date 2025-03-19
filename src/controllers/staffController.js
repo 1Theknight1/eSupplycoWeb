@@ -235,3 +235,26 @@ exports.getAllSlotsForSUpplyco= async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+
+//get supplyco details for profile
+exports.getSupplycoDetails= async (req, res) => {
+  try {
+      const { supplycoId } = req.params;
+
+      // Fetch the supplyco document from Firestore
+      const supplycoRef = db.collection("supplycos").doc(supplycoId);
+      const doc = await supplycoRef.get();
+
+      if (!doc.exists) {
+          return res.status(404).json({ success: false, message: "Supplyco not found" });
+      }
+
+      const supplycoData = doc.data();
+      return res.status(200).json({ success: true, data: supplycoData });
+
+  } catch (error) {
+      console.error("Error fetching Supplyco details:", error);
+      return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
