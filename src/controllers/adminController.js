@@ -356,10 +356,12 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
       const requestData = requestDoc.data();
   
       if (status === "approved") {
-        // Move data to supplycos collection
-        const supplycoRef = db.collection("supplycos").doc();
+        // Generate the next supplyco ID
+        const newSupplycoId = await getNextSupplycoId();
   
-        await supplycoRef.set({
+        // Move data to supplycos collection with the new supplyco ID
+        await db.collection("supplycos").doc(newSupplycoId).set({
+          supplycoId: newSupplycoId,
           supplycoName: requestData.supplycoName,
           owner: requestData.owner,
           contact: requestData.contact,
@@ -378,9 +380,9 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
         });
   
         // Delete the request from staffRequest collection
-       // await db.collection("staffRequest").doc(requestId).delete();
+        await db.collection("staffRequest").doc(requestId).delete();
   
-        return res.status(200).json({ message: "Staff request approved and moved to supplycos" });
+        return res.status(200).json({ message: `Staff request approved and added as ${newSupplycoId}` });
       } else {
         return res.status(400).json({ error: "Invalid status or no action required" });
       }
