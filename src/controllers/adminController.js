@@ -351,7 +351,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
     return uuidv4().slice(0, 8); // Generates an 8-character password
   }
   //approve or decline
-  exports.staffUpdateStatus= async (req, res) => {
+  exports.staffUpdateStatus = async (req, res) => {
     const { requestId, status } = req.body;
   
     if (!requestId || !status) {
@@ -373,9 +373,9 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
   
         // Generate a random password
         const rawPassword = generateRandomPassword();
-        const hashedPassword = await bcrypt.hash(rawPassword, 10); // Use bcryptjs for hashing
+        const hashedPassword = await bcrypt.hash(rawPassword, 10);
   
-        // Add to supplycos collection
+        // Add new supplyco
         await db.collection("supplycos").doc(newSupplycoId).set({
           supplycoId: newSupplycoId,
           supplycoName: requestData.supplycoName,
@@ -396,15 +396,16 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
           password: hashedPassword, // Store hashed password
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-  
-        // Send email with credentials
         const mailOptions = {
           from: "bazi01730@gmail.com",
           to: requestData.email,
           subject: "Supplyco Registration Approved",
           text: `Dear ${requestData.owner},\n\nCongratulations! Your Supplyco registration has been approved.\n\nYour login details:\nUsername: ${newSupplycoId}\nPassword: ${rawPassword}\n\nPlease log in and change your password immediately.\n\nBest regards,\nYour Team`,
         };
+        // Copy products from an existing supplyco (set the reference supplyco ID)
+        await copyProductsToNewSupplyco("supplyco_001", newSupplycoId);
   
+        // Send email with credentials
         await transporter.sendMail(mailOptions);
   
         // Remove from staffRequest collection
@@ -431,3 +432,23 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
       return `supplyco_${String(lastNumber + 1).padStart(3, "0")}`; // Increment and format
     }
   }
+
+  async function copyProductsToNewSupplyco(existingSupplycoId, newSupplycoId) {
+    const existingProducts = await db.collection("supplycos").doc(existingSupplycoId).collection("products").get();
+  
+    if (existingProducts.empty) {
+      console.log(`No products found in ${existingSupplycoId}`);
+      return;
+    }
+  
+    const batch = db.batch();
+  
+    existingProducts.forEach((doc) => {
+      const newDocRef = db.collection("supplycos").doc(newSupplycoId).collection("products").doc(doc.id);
+      batch.set(newDocRef, doc.data());
+    });
+  
+    await batch.commit();
+    console.log(`Copied ${existingProducts.size} products to ${newSupplycoId}`);
+  }
+  
