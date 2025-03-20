@@ -14,6 +14,6 @@ router.post("/send",sendMessage)
 router.post("/set-reminder",setReminder)
 router.post("/set-quota",setQuota)
 router.get("/staff-requests",staffRequests)
-router.post("/updateStatus",staffUpdateStatus)
+router.put("/updateStatus",staffUpdateStatus)
 
 module.exports=router
