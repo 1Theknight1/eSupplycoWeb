@@ -347,7 +347,9 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
       res.status(500).json({ error: "Internal Server Error" });
     }
   };
-
+  function generateRandomPassword() {
+    return uuidv4().slice(0, 8); // Generates an 8-character password
+  }
   //approve or decline
   exports.staffUpdateStatus= async (req, res) => {
     const { requestId, status } = req.body;
