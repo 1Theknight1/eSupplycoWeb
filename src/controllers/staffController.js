@@ -332,17 +332,17 @@ exports.checkPickup= async (req, res) => {
     const orderData = orderDoc.data();
 
     // Check if orderType is "pickup"
-    if (orderData.orderType !== "pickup") {
+    if (orderData.orderType !== "Pickup") {
       return res.status(400).json({ error: "This order is not a pickup order." });
     }
 
     // Check if order is already collected
-    if (orderData.status === "collected") {
+    if (orderData.status === "Collected") {
       return res.status(400).json({ error: "Order is already collected." });
     }
 
     // Update order status to "collected"
-    await orderRef.update({ status: "collected" });
+    await orderRef.update({ status: "Collected" });
 
     return res.status(200).json({ success: true, message: "Order status updated to collected." });
 
