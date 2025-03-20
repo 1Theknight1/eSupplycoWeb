@@ -391,3 +391,15 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
       return res.status(500).json({ error: "Internal Server Error" });
     }
   };
+  
+  async function getNextSupplycoId() {
+    const snapshot = await db.collection("supplycos").orderBy("supplycoId", "desc").limit(1).get();
+    
+    if (snapshot.empty) {
+      return "supplyco_003"; // Start from supplyco_003 if no entries exist
+    } else {
+      const lastId = snapshot.docs[0].data().supplycoId; // Get the last supplycoId
+      const lastNumber = parseInt(lastId.split("_")[1]); // Extract the numeric part
+      return `supplyco_${String(lastNumber + 1).padStart(3, "0")}`; // Increment and format
+    }
+  }
