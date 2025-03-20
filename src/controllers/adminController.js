@@ -33,7 +33,7 @@ exports.productsAdd = async (req, res) => {
       available,
       description
     } = req.body;
-
+app
     if (!name) {
       return res.status(400).json({ error: "Product ID and name are required" });
     }
@@ -349,7 +349,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
   };
 
   //approve or decline
-  exports.post("/updateStatus", async (req, res) => {
+  exports.staffUpdateStatus= async (req, res) => {
     const { requestId, status } = req.body;
   
     if (!requestId || !status) {
@@ -416,7 +416,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
       console.error("Error updating status:", error);
       return res.status(500).json({ error: "Internal Server Error" });
     }
-  });
+  };
 
   async function getNextSupplycoId() {
     const snapshot = await db.collection("supplycos").orderBy("supplycoId", "desc").limit(1).get();
