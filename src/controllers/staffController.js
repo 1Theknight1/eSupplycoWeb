@@ -311,3 +311,43 @@ exports.getSlotByCardNumber= async (req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 };
+
+
+//verify pickup slot
+exports.checkPickup= async (req, res) => {
+  const { orderId } = req.body;
+
+  if (!orderId) {
+    return res.status(400).json({ error: "Missing orderId in request body." });
+  }
+
+  try {
+    const orderRef = db.collection("orders").doc(orderId);
+    const orderDoc = await orderRef.get();
+
+    if (!orderDoc.exists) {
+      return res.status(404).json({ error: "Order not found." });
+    }
+
+    const orderData = orderDoc.data();
+
+    // Check if orderType is "pickup"
+    if (orderData.orderType !== "pickup") {
+      return res.status(400).json({ error: "This order is not a pickup order." });
+    }
+
+    // Check if order is already collected
+    if (orderData.status === "collected") {
+      return res.status(400).json({ error: "Order is already collected." });
+    }
+
+    // Update order status to "collected"
+    await orderRef.update({ status: "collected" });
+
+    return res.status(200).json({ success: true, message: "Order status updated to collected." });
+
+  } catch (error) {
+    console.error("Error checking order:", error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+};
