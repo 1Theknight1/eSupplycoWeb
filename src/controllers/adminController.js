@@ -5,7 +5,17 @@ const {db,rtdb}=require("../utils/firebase-config")
 const {authenticateUser}=require("../middlewares/authMiddleware")
 const functions = require("firebase-functions");
 const fcm = admin.messaging();
+const bcrypt = require("bcryptjs"); // Use bcryptjs instead of bcrypt
+const nodemailer = require("nodemailer");
+const { v4: uuidv4 } = require("uuid");
 
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: "bazi01730@gmail.com", // Your email
+    pass: "rpgv-dvdo-txtc-psht", // Use the generated app password here
+  },
+});
 
 //1)Products add
 exports.productsAdd = async (req, res) => {
@@ -339,7 +349,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
   };
 
   //approve or decline
-  exports.staffUpdateStatus= async (req, res) => {
+  app.post("/updateStatus", async (req, res) => {
     const { requestId, status } = req.body;
   
     if (!requestId || !status) {
@@ -356,10 +366,14 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
       const requestData = requestDoc.data();
   
       if (status === "approved") {
-        // Generate the next supplyco ID
+        // Generate new supplyco ID
         const newSupplycoId = await getNextSupplycoId();
   
-        // Move data to supplycos collection with the new supplyco ID
+        // Generate a random password
+        const rawPassword = generateRandomPassword();
+        const hashedPassword = await bcrypt.hash(rawPassword, 10); // Use bcryptjs for hashing
+  
+        // Add to supplycos collection
         await db.collection("supplycos").doc(newSupplycoId).set({
           supplycoId: newSupplycoId,
           supplycoName: requestData.supplycoName,
@@ -376,13 +390,25 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
           businessCertificate: requestData.businessCertificate,
           govtID: requestData.govtID,
           taxProof: requestData.taxProof,
+          username: newSupplycoId,
+          password: hashedPassword, // Store hashed password
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
   
-        // Delete the request from staffRequest collection
+        // Send email with credentials
+        const mailOptions = {
+          from: "bazi01730@gmail.com",
+          to: requestData.email,
+          subject: "Supplyco Registration Approved",
+          text: `Dear ${requestData.owner},\n\nCongratulations! Your Supplyco registration has been approved.\n\nYour login details:\nUsername: ${newSupplycoId}\nPassword: ${rawPassword}\n\nPlease log in and change your password immediately.\n\nBest regards,\nYour Team`,
+        };
+  
+        await transporter.sendMail(mailOptions);
+  
+        // Remove from staffRequest collection
         await db.collection("staffRequest").doc(requestId).delete();
   
-        return res.status(200).json({ message: `Staff request approved and added as ${newSupplycoId}` });
+        return res.status(200).json({ message: `Staff request approved and added as ${newSupplycoId}, email sent.` });
       } else {
         return res.status(400).json({ error: "Invalid status or no action required" });
       }
@@ -390,8 +416,8 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
       console.error("Error updating status:", error);
       return res.status(500).json({ error: "Internal Server Error" });
     }
-  };
-  
+  });
+
   async function getNextSupplycoId() {
     const snapshot = await db.collection("supplycos").orderBy("supplycoId", "desc").limit(1).get();
     
