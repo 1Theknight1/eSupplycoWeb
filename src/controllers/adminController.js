@@ -349,7 +349,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
   };
 
   //approve or decline
-  app.post("/updateStatus", async (req, res) => {
+  exports.post("/updateStatus", async (req, res) => {
     const { requestId, status } = req.body;
   
     if (!requestId || !status) {
