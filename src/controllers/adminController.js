@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: "bazi01730@gmail.com", // Your email
-    pass: "rpgv-dvdo-txtc-psht", // Use the generated app password here
+    pass: "rpgvdvdotxtcpsht", // Use the generated app password here
   },
 });
 
