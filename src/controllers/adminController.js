@@ -337,3 +337,55 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
       res.status(500).json({ error: "Internal Server Error" });
     }
   };
+
+  //approve or decline
+  exports.staffUpdateStatus= async (req, res) => {
+    const { requestId, status } = req.body;
+  
+    if (!requestId || !status) {
+      return res.status(400).json({ error: "requestId and status are required" });
+    }
+  
+    try {
+      const requestDoc = await db.collection("staffRequest").doc(requestId).get();
+  
+      if (!requestDoc.exists) {
+        return res.status(404).json({ error: "Request not found" });
+      }
+  
+      const requestData = requestDoc.data();
+  
+      if (status === "approved") {
+        // Move data to supplycos collection
+        const supplycoRef = db.collection("supplycos").doc();
+  
+        await supplycoRef.set({
+          supplycoName: requestData.supplycoName,
+          owner: requestData.owner,
+          contact: requestData.contact,
+          email: requestData.email,
+          address: requestData.address,
+          taluk: requestData.taluk,
+          city: requestData.city,
+          latitude: requestData.latitude,
+          longitude: requestData.longitude,
+          deliveryAvailable: requestData.deliveryAvailable,
+          taxIdNumber: requestData.taxIdNumber,
+          businessCertificate: requestData.businessCertificate,
+          govtID: requestData.govtID,
+          taxProof: requestData.taxProof,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+  
+        // Delete the request from staffRequest collection
+        await db.collection("staffRequest").doc(requestId).delete();
+  
+        return res.status(200).json({ message: "Staff request approved and moved to supplycos" });
+      } else {
+        return res.status(400).json({ error: "Invalid status or no action required" });
+      }
+    } catch (error) {
+      console.error("Error updating status:", error);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }
+  };
