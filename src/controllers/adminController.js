@@ -378,7 +378,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
         });
   
         // Delete the request from staffRequest collection
-        await db.collection("staffRequest").doc(requestId).delete();
+       // await db.collection("staffRequest").doc(requestId).delete();
   
         return res.status(200).json({ message: "Staff request approved and moved to supplycos" });
       } else {
