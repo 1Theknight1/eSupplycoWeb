@@ -378,7 +378,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
         // Add new supplyco
         await db.collection("supplycos").doc(newSupplycoId).set({
           supplycoId: newSupplycoId,
-          supplycoName: requestData.supplycoName,
+          name: requestData.supplycoName,
           owner: requestData.owner,
           contact: requestData.contact,
           email: requestData.email,
@@ -404,6 +404,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
         };
         // Copy products from an existing supplyco (set the reference supplyco ID)
         await copyProductsToNewSupplyco("supplyco_001", newSupplycoId);
+        await addProductsToRTDB(newSupplycoId);
   
         // Send email with credentials
         await transporter.sendMail(mailOptions);
@@ -452,3 +453,28 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
     console.log(`Copied ${existingProducts.size} products to ${newSupplycoId}`);
   }
   
+  async function addProductsToRTDB(supplycoId) {
+    try {
+        const productsSnapshot = await db.collection("supplycos").doc(supplycoId).collection("products").get();
+        
+        const updates = {};
+
+        productsSnapshot.forEach((doc) => {
+            const productData = doc.data();
+            const productName = productData.name; // Ensure the product has a "name" field
+            
+            updates[`stock_updates/${supplycoId}/${productName}`] = {
+                name: productName,
+                stock: productData.stock || 0, // Default to 0 if stock is missing
+                available: productData.available || 0, // Default to 0 if available is missing
+            };
+        });
+
+        // Perform a batch update to RTDB
+        await rtdb.ref().update(updates);
+
+        console.log(`Products successfully added to RTDB for supplyco: ${supplycoId}`);
+    } catch (error) {
+        console.error("Error adding products to RTDB:", error);
+    }
+}
