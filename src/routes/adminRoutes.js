@@ -1,7 +1,7 @@
 /* eslint-disable */
 
 const express=require("express")
-const {productsAdd,supplycoAdd,supplycoAll,deleteUser,sendMessage,setReminder,setQuota,getStaffRequest}=require("../../src/controllers/adminController")
+const {productsAdd,supplycoAdd,supplycoAll,deleteUser,sendMessage,setReminder,setQuota,staffRequests}=require("../../src/controllers/adminController")
 const {authenticateUser}=require("../../src/middlewares/authMiddleware")
 
 const router=express.Router()
@@ -13,6 +13,6 @@ router.post("/userDel",deleteUser)
 router.post("/send",sendMessage)
 router.post("/set-reminder",setReminder)
 router.post("/set-quota",setQuota)
-router.get("/staff-requests",getStaffRequest)
+router.get("/staff-requests",staffRequests)
 
 module.exports=router

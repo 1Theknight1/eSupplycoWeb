@@ -317,18 +317,19 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
   };
   
   //get staff requests
-  exports.getStaffRequest= async (req, res) => {
+  exports.staffRequests= async (req, res) => {
     try {
-      const staffRequestsSnapshot = await db.collection("staffRequest").get();
+      const staffRequestsRef = db.collection("staffRequest");
+      const snapshot = await staffRequestsRef.get();
   
-      if (staffRequestsSnapshot.empty) {
+      if (snapshot.empty) {
         return res.status(404).json({ message: "No staff requests found." });
       }
   
-      const staffRequests = [];
-      staffRequestsSnapshot.forEach((doc) => {
-        staffRequests.push({ id: doc.id, ...doc.data() });
-      });
+      const staffRequests = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
   
       res.status(200).json(staffRequests);
     } catch (error) {
