@@ -124,7 +124,7 @@ const {db,rtdb}=require("../utils/firebase-config")
 
 exports.placeOrder = async (req, res) => {
     try {
-        const { products, cardNumber, supplycoId, orderType, totalPrice, remainingQuota } = req.body;
+        const { products, cardNumber, supplycoId, orderType, totalPrice, remainingQuota,latitude,longitude } = req.body;
 
         // ✅ Validate request body
         if (!products || !Array.isArray(products) || !cardNumber || !supplycoId || !orderType || !totalPrice || !remainingQuota) {
@@ -270,12 +270,16 @@ exports.placeOrder = async (req, res) => {
             tokenNumber,
             lastResetDate: currentDate,
         });
-
+        const location={
+            latitude,
+            longitude,
+        }
         // ✅ Save the order in Firestore
         const orderData = {
             cardNumber,
             supplycoId,
             orderType,
+            location,
             products: responseProducts,
             totalPrice: totalFinalPrice,
             name,
