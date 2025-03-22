@@ -124,11 +124,16 @@ const {db,rtdb}=require("../utils/firebase-config")
 
 exports.placeOrder = async (req, res) => {
     try {
-        const { products, cardNumber, supplycoId, orderType, totalPrice, remainingQuota,latitude,longitude } = req.body;
+        const { products, cardNumber, supplycoId, orderType, totalPrice, remainingQuota, latitude, longitude } = req.body;
 
         // ✅ Validate request body
         if (!products || !Array.isArray(products) || !cardNumber || !supplycoId || !orderType || !totalPrice || !remainingQuota) {
             return res.status(400).json({ message: "Invalid request format. Required fields missing." });
+        }
+
+        // ✅ Validate location for delivery orders
+        if (orderType === "Delivery" && (!latitude || !longitude)) {
+            return res.status(400).json({ message: "Latitude and longitude are required for delivery orders." });
         }
 
         console.log(`🛒 New Order: User ${cardNumber} ordering ${products.length} products from ${supplycoId}`);
@@ -270,16 +275,13 @@ exports.placeOrder = async (req, res) => {
             tokenNumber,
             lastResetDate: currentDate,
         });
-        const location={
-            latitude,
-            longitude,
-        }
+
         // ✅ Save the order in Firestore
         const orderData = {
             cardNumber,
             supplycoId,
             orderType,
-            location,
+            ...(orderType === "Delivery" && { location: { latitude, longitude } }), // Include location only for delivery orders
             products: responseProducts,
             totalPrice: totalFinalPrice,
             name,
@@ -316,6 +318,7 @@ exports.placeOrder = async (req, res) => {
         res.status(500).json({ error: "Internal server error", details: error.message });
     }
 };
+
 //calculate discount
 exports.calculateDiscount = async (req, res) => {
   try {
