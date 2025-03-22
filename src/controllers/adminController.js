@@ -12,7 +12,7 @@ const { v4: uuidv4 } = require("uuid");
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "wsupplyco3@gmail.com", // Your email
+    user: "esupplyco3@gmail.com", // Your email
     pass: "pmyqbvvfkcxoqlrj", // Use the generated app password here
   },
 });
@@ -422,7 +422,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
   
         // 🔹 Send email with credentials
         const mailOptions = {
-          from: "wsupplyco3@gmail.com",
+          from: "esupplyco3@gmail.com",
           to: requestData.email,
           subject: "Supplyco Registration Approved",
           text: `Dear ${requestData.owner},\n\nCongratulations! Your Supplyco registration has been approved.\n\nYour login details:\nUsername: ${newSupplycoId}\nPassword: ${rawPassword}\n\nPlease log in and change your password immediately.\n\nBest regards,\nYour Team`,
