@@ -516,11 +516,11 @@ exports.adminDashboard= async (req, res) => {
     const supplycos = supplycosSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
     // Fetch in-progress orders
-    const inProgressOrdersSnapshot = await db.collection("orders").where("status", "==", "in-progress").get();
+    const inProgressOrdersSnapshot = await db.collection("orders").where("status", "==", "In progress").get();
     const inProgressOrders = inProgressOrdersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
     // Fetch collected orders
-    const collectedOrdersSnapshot = await db.collection("orders").where("status", "==", "collected").get();
+    const collectedOrdersSnapshot = await db.collection("orders").where("status", "==", "Collected").get();
     const collectedOrders = collectedOrdersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
     // Response
