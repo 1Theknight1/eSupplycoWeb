@@ -508,7 +508,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
 exports.adminDashboard= async (req, res) => {
   try {
     // Fetch all users (Admins)
-    const usersSnapshot = await db.collection("admin").get();
+    const usersSnapshot = await db.collection("users").get();
     const users = usersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
     // Fetch all supplycos
