@@ -12,8 +12,8 @@ const { v4: uuidv4 } = require("uuid");
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "bazi01730@gmail.com", // Your email
-    pass: "rpgvdvdotxtcpsht", // Use the generated app password here
+    user: "wsupplyco3@gmail.com", // Your email
+    pass: "pmyqbvvfkcxoqlrj", // Use the generated app password here
   },
 });
 
@@ -396,23 +396,46 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
           password: hashedPassword, // Store hashed password
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
+  
+        // 🔹 Create user in Firebase Authentication
+        const userRecord = await auth.createUser({
+          uid: newSupplycoId, // Set uid as supplycoId
+          email: requestData.email,
+          emailVerified: false,
+          password: rawPassword,
+          displayName: requestData.owner,
+          disabled: false,
+        });
+  
+        // 🔹 Assign role in Firestore
+        await db.collection("users").doc(newSupplycoId).set({
+          uid: newSupplycoId,
+          email: requestData.email,
+          role: "supplyco-owner",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+  
+        // 🔹 Copy products & add to Realtime Database
+        await copyProductsToNewSupplyco("supplyco_001", newSupplycoId);
+        await addProductsToRTDB(newSupplycoId);
+  
+        // 🔹 Send email with credentials
         const mailOptions = {
-          from: "bazi01730@gmail.com",
+          from: "wsupplyco3@gmail.com",
           to: requestData.email,
           subject: "Supplyco Registration Approved",
           text: `Dear ${requestData.owner},\n\nCongratulations! Your Supplyco registration has been approved.\n\nYour login details:\nUsername: ${newSupplycoId}\nPassword: ${rawPassword}\n\nPlease log in and change your password immediately.\n\nBest regards,\nYour Team`,
         };
-        // Copy products from an existing supplyco (set the reference supplyco ID)
-        await copyProductsToNewSupplyco("supplyco_001", newSupplycoId);
-        await addProductsToRTDB(newSupplycoId);
   
-        // Send email with credentials
         await transporter.sendMail(mailOptions);
   
         // Remove from staffRequest collection
         await db.collection("staffRequest").doc(requestId).delete();
   
-        return res.status(200).json({ message: `Staff request approved and added as ${newSupplycoId}, email sent.` });
+        return res.status(200).json({
+          message: `Staff request approved and added as ${newSupplycoId}. User created, email sent.`,
+          user: userRecord,
+        });
       } else {
         return res.status(400).json({ error: "Invalid status or no action required" });
       }
