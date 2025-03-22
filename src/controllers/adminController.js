@@ -385,6 +385,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
           address: requestData.address,
           taluk: requestData.taluk,
           city: requestData.city,
+          role:"staff",
           latitude: requestData.latitude,
           longitude: requestData.longitude,
           deliveryAvailable: requestData.deliveryAvailable,
