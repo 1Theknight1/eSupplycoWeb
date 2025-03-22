@@ -1,7 +1,7 @@
 /* eslint-disable */
 
 const admin=require("firebase-admin")
-const {db,rtdb}=require("../utils/firebase-config")
+const {db,rtdb,auth}=require("../utils/firebase-config")
 const {authenticateUser}=require("../middlewares/authMiddleware")
 const functions = require("firebase-functions");
 const fcm = admin.messaging();

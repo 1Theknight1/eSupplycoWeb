@@ -14,4 +14,4 @@ console.log(process.env.DATABASE_URL)
 const db = admin.firestore();
 const rtdb = admin.database(); 
 const auth = admin.auth(); 
-module.exports = { db, rtdb };
+module.exports = { db, rtdb ,auth};
