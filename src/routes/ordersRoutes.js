@@ -1,7 +1,7 @@
 /* eslint-disable */
 
 const express=require("express")
-const {placeOrder,calculateDiscount,getOrdersByNumber,cancelOrder,getActiveOrdersByNumber,getHistory,changeOrderStatue}=require("../../src/controllers/ordersController")
+const {placeOrder,calculateDiscount,getOrdersByNumber,cancelOrder,getActiveOrdersByNumber,getHistory,changeOrderStatue,assignDelivery}=require("../../src/controllers/ordersController")
 const{authenticateUser}=require("../../src/middlewares/authMiddleware")
 const router=express.Router()
 
@@ -12,5 +12,6 @@ router.get("/cancelOrder/:orderId",authenticateUser,cancelOrder)
 router.get("/activeOrders/:cardNumber",getActiveOrdersByNumber)
 router.get("/bookings/:cardNumber",getHistory)
 router.patch("/status/:orderId",changeOrderStatue)
+router.post("/assignDelivery",assignDelivery)
 
 module.exports=router

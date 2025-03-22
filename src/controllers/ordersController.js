@@ -592,3 +592,45 @@ exports.changeOrderStatue= async (req, res) => {
       return res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
   };
+
+  //sent to delivery app
+ exports.assignDelivery= async (req, res) => {
+    try {
+      const { orderId } = req.body;
+  
+      // Validate the request
+      if (!orderId) {
+        return res.status(400).json({ message: "Order ID is required." });
+      }
+  
+      // Fetch the order from the orders collection
+      const orderRef = db.collection("orders").doc(orderId);
+      const orderDoc = await orderRef.get();
+  
+      if (!orderDoc.exists) {
+        return res.status(404).json({ message: "Order not found." });
+      }
+  
+      const orderData = orderDoc.data();
+  
+      // Check if the order is already in the Delivery collection
+      const deliveryRef = db.collection("Delivery").doc(orderId);
+      const deliveryDoc = await deliveryRef.get();
+  
+      if (deliveryDoc.exists) {
+        return res.status(400).json({ message: "Order is already in the Delivery collection." });
+      }
+  
+      // Copy the order to the Delivery collection
+      await deliveryRef.set(orderData);
+  
+      // Update the status of the order in the orders collection to "assigning"
+      await orderRef.update({ status: "assigning" });
+  
+      // Respond with success
+      res.status(200).json({ message: "Order assigned for delivery successfully.", orderId });
+    } catch (error) {
+      console.error("❌ Error assigning order for delivery:", error);
+      res.status(500).json({ message: "Internal server error.", error: error.message });
+    }
+  };
