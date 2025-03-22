@@ -502,3 +502,35 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
         console.error("Error adding products to RTDB:", error);
     }
 }
+
+
+//admin dashboard
+exports.adminDashboard= async (req, res) => {
+  try {
+    // Fetch all users (Admins)
+    const usersSnapshot = await db.collection("admin").get();
+    const users = usersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+    // Fetch all supplycos
+    const supplycosSnapshot = await db.collection("supplycos").get();
+    const supplycos = supplycosSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+    // Fetch in-progress orders
+    const inProgressOrdersSnapshot = await db.collection("orders").where("status", "==", "in-progress").get();
+    const inProgressOrders = inProgressOrdersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+    // Fetch collected orders
+    const collectedOrdersSnapshot = await db.collection("orders").where("status", "==", "collected").get();
+    const collectedOrders = collectedOrdersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+    // Response
+    res.json({
+      users,
+      supplycos,
+      inProgressOrders,
+      collectedOrders,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch data", details: error.message });
+  }
+};
