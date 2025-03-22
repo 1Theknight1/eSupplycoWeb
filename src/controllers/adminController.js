@@ -487,8 +487,8 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
             const productName = productData.name; // Ensure the product has a "name" field
             
             updates[`stock_updates/${supplycoId}/${productName}`] = {
-                name: productName,
-                stock: productData.stock || 0, // Default to 0 if stock is missing
+                
+                stock: productData.stock || 40, // Default to 0 if stock is missing
                 available: productData.available || 0, // Default to 0 if available is missing
             };
         });
