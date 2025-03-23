@@ -3,6 +3,8 @@
 const { db, rtdb } = require("../utils/firebase-config");
 const admin = require("firebase-admin");
 
+
+
 // Fetch products for a specific Supplyco
 exports.supplycoBasedProducts = async (req, res) => {
   try {

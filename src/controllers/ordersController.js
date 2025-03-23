@@ -3,124 +3,15 @@
 const admin=require("firebase-admin")
 const {db,rtdb}=require("../utils/firebase-config")
 
-//Place order
-// exports.placeOrder = async (req, res) => {
-//     try {
-//         const { products, cardNumber, supplycoId, orderType, totalPrice } = req.body;
-  
-//         // ✅ Validate request body
-//         if (!products || !Array.isArray(products) || !cardNumber || !supplycoId || !orderType || !totalPrice) {
-//             return res.status(400).json({ message: "Invalid request format. Required fields missing." });
-//         }
-  
-//         console.log(`🛒 New Order: User ${cardNumber} ordering ${products.length} products from ${supplycoId}`);
-  
-//         // ✅ Fetch user details
-//         const userDoc = await db.collection("users").doc(cardNumber).get();
-//         if (!userDoc.exists) {
-//             console.log(`❌ User ${cardNumber} not found.`);
-//             return res.status(400).json({ message: "User not found" });
-//         }
-  
-//         const userData = userDoc.data();
-//         const userType = userData.userType;
-//         const famSize = userData.familySize || 1;
-  
-//         let failedItems = [];
-  
-//         // ✅ Check stock and deduct it if available
-//         for (const item of products) {
-//             const { productId, quantity } = item;
-  
-//             console.log(`🔍 Checking stock for ${productId}, requested quantity: ${quantity}`);
-  
-//             // Fetch stock from Realtime Database
-//             const stockRef = rtdb.ref(`stock_updates/${supplycoId}/${productId}/stock`);
-//             const stockSnapshot = await stockRef.once("value");
-//             let stock = stockSnapshot.val();
-  
-//             if (stock === null || stock < quantity) {
-//                 console.log(`❌ Not enough stock for ${productId}. Available: ${stock}, Requested: ${quantity}`);
-//                 failedItems.push({ productId, reason: "Not enough stock" });
-//                 break;
-//             }
-//             const ProductRef=db.collection('supplycos').doc(supplycoId).collection('products').doc(productId).get()
-            
-//             // ✅ Deduct stock safely using Firebase Transaction
-//             const stockUpdated = await stockRef.transaction((currentStock) => {
-//                 if (currentStock === null || currentStock < quantity) return currentStock;
-//                 return currentStock - quantity;
-//             });
-  
-//             if (!stockUpdated.committed) {
-//                 console.log(`❌ Stock update failed for ${productId}.`);
-//                 failedItems.push({ productId, reason: "Stock update failed" });
-//                 break;
-//             }
-//         }
-  
-//         // ❌ If stock validation failed for any product, reject the entire order
-//         if (failedItems.length > 0) {
-//             return res.status(400).json({ message: "Order failed due to stock issues.", failedItems });
-//         }
-  
-//         // ✅ Generate a token number specific to the supplycoId
-//         const supplycoRef = db.collection("supplycos").doc(supplycoId); // Reference to the supplyco document
-//         const supplycoDoc = await supplycoRef.get();
-  
-//         if (!supplycoDoc.exists) {
-//             console.log(`❌ Supplyco ${supplycoId} not found.`);
-//             return res.status(400).json({ message: "Supplyco not found" });
-//         }
-  
-//         // Get the current date in YYYY-MM-DD format
-//         const currentDate = new Date().toISOString().split("T")[0];
-  
-//         // Check if the last reset date is today
-//         const supplycoData = supplycoDoc.data();
-//         const lastResetDate = supplycoData.lastResetDate || null;
-//         const name=supplycoData.name || null
-//         let tokenNumber = 1; // Default value if it's a new day or no token number exists
-  
-//         if (lastResetDate === currentDate) {
-//             // If the last reset date is today, increment the token number
-//             tokenNumber = (supplycoData.tokenNumber || 0) + 1;
-//         } else {
-//             // If it's a new day, reset the token number to 1
-//             tokenNumber = 1;
-//         }
-  
-//         // Update the supplyco document with the new token number and last reset date
-//         await supplycoRef.update({
-//             tokenNumber,
-//             lastResetDate: currentDate,
-//         });
-  
-//         // ✅ Save the order in Firestore
-//         const orderData = {
-//             cardNumber,
-//             supplycoId,
-//             orderType,
-//             products,
-//             totalPrice,
-//             name,
-//             status: "In progress",
-//             expired: false,
-//             tokenNumber, // Add the token number to the order
-//             timestamp: admin.firestore.FieldValue.serverTimestamp()
-//         };
-  
-//         const orderRef = await db.collection("orders").add(orderData);
-  
-//         console.log(`📦 Order placed successfully: ${orderRef.id}, Token Number: ${tokenNumber}`);
-//         res.status(201).json({ message: "Order placed successfully!", orderId: orderRef.id, tokenNumber });
-  
-//     } catch (error) {
-//         console.error("❌ Error placing order:", error);
-//         res.status(500).json({ error: "Internal server error", details: error.message });
-//     }
-//   };
 
+async function logApiCall( userId, action) {
+  const logRef = db.collection("logs").doc();
+  await logRef.set({
+   
+    action: action, // Custom action description
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
 
 exports.placeOrder = async (req, res) => {
     try {
@@ -309,6 +200,7 @@ exports.placeOrder = async (req, res) => {
         await userRef.update({
             usedQuota: updatedUsedQuota, // Update with merged data
         });
+        await logApiCall(`${cardNumber} placed order at ${supplycoId}`);
 
         console.log(`📦 Order placed successfully: ${orderRef.id}, Token Number: ${tokenNumber}`);
         res.status(201).json({ message: "Order placed successfully!", orderId: orderRef.id, tokenNumber });
@@ -456,7 +348,7 @@ exports.cancelOrder = async (req, res) => {
             status: "canceled",
             canceledAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-
+        await logApiCall(`${orderId} was cancelled `);
         res.status(200).json({ message: "Order canceled successfully." });
 
     } catch (error) {
@@ -586,6 +478,7 @@ exports.changeOrderStatue= async (req, res) => {
       }
   
       await orderRef.update({ status });
+      await logApiCall(`Order ${orderId} updated to ${status}` );
   
       return res.status(200).json({ message: `Order ${orderId} updated to ${status}` });
     } catch (error) {
@@ -596,10 +489,10 @@ exports.changeOrderStatue= async (req, res) => {
   //sent to delivery app
  exports.assignDelivery= async (req, res) => {
     try {
-      const { orderId } = req.body;
+      const { supplycoId,orderId } = req.body;
   
       // Validate the request
-      if (!orderId) {
+      if (!orderId ) {
         return res.status(400).json({ message: "Order ID is required." });
       }
   
@@ -626,6 +519,7 @@ exports.changeOrderStatue= async (req, res) => {
   
       // Update the status of the order in the orders collection to "assigning"
       await orderRef.update({ status: "assigning" });
+      await logApiCall(`Order ${orderId} assigned to Delivery App at ${supplycoId}` );
   
       // Respond with success
       res.status(200).json({ message: "Order assigned for delivery successfully.", orderId });

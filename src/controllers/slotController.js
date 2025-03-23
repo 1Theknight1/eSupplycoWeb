@@ -3,79 +3,16 @@
 const {db,rtdb}=require("../utils/firebase-config")
 const admin=require("firebase-admin")
 
-// //Book a slot
-// exports.bookSlot= async (req, res) => {
-//     try {
-//       const { supplycoId } = req.params;
-//       const { cardNumber, slotId, booking_date } = req.body;
-      
-//       if (!cardNumber || !slotId || !booking_date) {
-//         return res.status(400).json({ message: "Missing required fields" });
-//       }
-  
-//       const slotRef = db.doc(`supplycos/${supplycoId}/slots/${slotId}`);
-//       const slotSnapshot = await slotRef.get();
-  
-//       if (!slotSnapshot.exists) {
-//         return res.status(404).json({ message: "Slot not found" });
-//       }
-  
-//       const slotData = slotSnapshot.data();
-//       if (slotData.booked_count >= slotData.capacity) {
-//         return res.status(400).json({ message: "Slot fully booked" });
-//       }
-  
-//       // ✅ Update slot count
-//       await slotRef.update({ booked_count: admin.firestore.FieldValue.increment(1) });
-  
-//       // ✅ Store the booking
-//       const bookingRef = await db.collection("bookings").add({
-//         cardNumber,
-//         supplycoId,
-//         slotId,
-//         booking_date,
-//         timestamp: admin.firestore.FieldValue.serverTimestamp(),
-//       });
-  
-//       res.status(201).json({ message: "Slot booked successfully!", bookingId: bookingRef.id });
-//     } catch (error) {
-//       res.status(500).json({ error: "Error booking slot", details: error.message });
-//     }
-//   };
-  
 
-//   //get slots from supplyco
-//   exports.getSlotsBySupplycoId = async (req, res) => {
-//     try {
-//         const { supplycoId } = req.params;
+async function logApiCall(userId, action) {
+  const logRef = db.collection("logs").doc();
+  await logRef.set({
+   
+    action: action, // Custom action description
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
 
-//         if (!supplycoId) {
-//             return res.status(400).json({ message: "Supplyco ID is required" });
-//         }
-
-//         // Reference to slots collection inside the supplyco document
-//         const slotsRef = db.collection(`supplycos/${supplycoId}/slots`);
-//         const snapshot = await slotsRef.get();
-
-//         if (snapshot.empty) {
-//             return res.status(404).json({ message: "No slots found for the given Supplyco ID." });
-//         }
-
-//         let slots = [];
-//         snapshot.forEach(doc => {
-//             slots.push({ slotId: doc.id, ...doc.data() });
-//         });
-
-//         res.status(200).json({ message: "Slots retrieved successfully", slots });
-
-//     } catch (error) {
-//         console.error("❌ Error fetching slots:", error);
-//         res.status(500).json({ message: "Internal server error", error: error.message });
-//     }
-// };
-
-
-//book a slot
 exports.bookSlot = async (req, res) => {
     const { supplycoId, date, slotId, cardNumber } = req.body;
 
@@ -119,7 +56,7 @@ exports.bookSlot = async (req, res) => {
 
             return { message: "Slot booked successfully" };
         });
-
+        await logApiCall(`${cardNumber} booked ${slotId} at ${supplycoId}` );
         res.status(200).json(result);
     } catch (error) {
         res.status(400).json({ error: error.message });

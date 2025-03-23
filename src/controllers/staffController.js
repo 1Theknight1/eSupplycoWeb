@@ -9,6 +9,15 @@ const admin=require("firebase-admin")
 // const storage = multer.memoryStorage(); // Store files in memory before uploading to Firebase
 const bucket = admin.storage().bucket();
 
+async function logApiCall(userId, action) {
+  const logRef = db.collection("logs").doc();
+  await logRef.set({
+   
+    action: action, // Custom action description
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
 //get orders of supplyco
 exports.getSupplycoOrders= async (req, res) => {
     try {
@@ -109,7 +118,7 @@ exports.getSupplycoOrders= async (req, res) => {
           status: "pending", // Mark as pending by default
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-  
+        await logApiCall(`${owner} is requested for eSupplyco staff` );
         res.status(201).json({
           message: "Staff registration request submitted successfully!",
           requestId: newStaffRef.id, // Include the Firestore document ID
@@ -201,7 +210,7 @@ exports.addSlot= async (req, res) => {
 
         // Add slot to Firestore
         await db.collection("supplycos").doc(supplycoId).collection("slots").doc(newSlotId).set(slotData);
-
+        await logApiCall(`New Slot :${newSlotId} added at ${supplycoId}` );
         return res.status(201).json({ message: "Walk-in slot added successfully", slotId: newSlotId });
     } catch (error) {
         console.error("Error adding walk-in slot:", error);
@@ -343,7 +352,7 @@ exports.checkPickup= async (req, res) => {
 
     // Update order status to "collected"
     await orderRef.update({ status: "Collected" });
-
+    await logApiCall(` ${orderId} is successfully collected` );
     return res.status(200).json({ success: true, message: "Order status updated to collected." });
 
   } catch (error) {

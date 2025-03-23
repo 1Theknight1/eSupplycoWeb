@@ -4,6 +4,14 @@ const admin = require("firebase-admin");
 const { setCardNumberClaim } = require("../middlewares/authMiddleware");
 const { db } = require("../utils/firebase-config");
 
+async function logApiCall( userId, action) {
+  const logRef = db.collection("logs").doc();
+  await logRef.set({
+    action: action, // Custom action description
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
 // 1️⃣ ✅ REGISTER USER
 exports.registerUser = async (req, res) => {
   const { cardNumber, phoneNumber } = req.body;
@@ -64,7 +72,7 @@ exports.registerUser = async (req, res) => {
       phoneNumber: phoneNumber,
       lastLogged: todayDateString,
     });
-
+    await logApiCall(`New User Registered : ${cardNumber} `);
     // ✅ Step 5: Set Firebase Authentication Custom Claims
     await setCardNumberClaim(uid, cardNumber);
 
