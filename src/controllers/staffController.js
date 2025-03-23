@@ -360,3 +360,28 @@ exports.checkPickup= async (req, res) => {
     return res.status(500).json({ error: "Internal server error." });
   }
 };
+
+
+//update stock
+exports.updateStock= async (req, res) => {
+  try {
+    const { supplycoId, productName, newStock } = req.body;
+
+    if (!supplycoId || !productName || newStock === undefined) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const stockRef = db.ref(`stock_updates/${supplycoId}/${productName}`);
+
+    // Update stock in Realtime Database
+    await stockRef.set({
+      stock: newStock,
+      updatedAt: admin.database.ServerValue.TIMESTAMP,
+    });
+
+    res.json({ success: true, message: "Stock updated successfully" });
+  } catch (error) {
+    console.error("Error updating stock:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
