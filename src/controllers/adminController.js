@@ -578,3 +578,23 @@ exports.addPrimaryAdmin = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+//get all logs
+exports.getAllLogs = async (req, res) => {
+  try {
+    const logsSnapshot = await db.collection("logs").orderBy("timestamp", "desc").get();
+    
+    if (logsSnapshot.empty) {
+      return res.status(404).json({ message: "No logs found" });
+    }
+
+    const logs = logsSnapshot.docs.map(doc => ({
+      id: doc.id, 
+      ...doc.data()
+    }));
+
+    res.status(200).json(logs);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
