@@ -210,7 +210,7 @@ exports.addSlot= async (req, res) => {
 
         // Add slot to Firestore
         await db.collection("supplycos").doc(supplycoId).collection("slots").doc(newSlotId).set(slotData);
-        await logApiCall(`New Slot :${newSlotId} added at ${supplycoId}` );
+        await logApiCall(`New walkin-Slot :${newSlotId} added at ${supplycoId}` );
         return res.status(201).json({ message: "Walk-in slot added successfully", slotId: newSlotId });
     } catch (error) {
         console.error("Error adding walk-in slot:", error);
@@ -352,7 +352,7 @@ exports.checkPickup= async (req, res) => {
 
     // Update order status to "collected"
     await orderRef.update({ status: "Collected" });
-    await logApiCall(` ${orderId} is successfully collected` );
+    await logApiCall(` Order:${orderId} was successfully collected` );
     return res.status(200).json({ success: true, message: "Order status updated to collected." });
 
   } catch (error) {

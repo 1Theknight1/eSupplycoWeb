@@ -201,7 +201,7 @@ exports.placeOrder = async (req, res) => {
         await userRef.update({
             usedQuota: updatedUsedQuota, // Update with merged data
         });
-        await logApiCall(`${cardNumber} placed order at ${supplycoId}`);
+        await logApiCall(`${cardNumber} placed a ${orderType} order at ${supplycoId}`);
 
         console.log(`📦 Order placed successfully: ${orderRef.id}, Token Number: ${tokenNumber}`);
         res.status(201).json({ message: "Order placed successfully!", orderId: orderRef.id, tokenNumber });
@@ -349,7 +349,7 @@ exports.cancelOrder = async (req, res) => {
             status: "canceled",
             canceledAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        await logApiCall(`${orderId} was cancelled `);
+        await logApiCall(`Order:${orderId} was cancelled `);
         res.status(200).json({ message: "Order canceled successfully." });
 
     } catch (error) {
@@ -479,7 +479,7 @@ exports.changeOrderStatue= async (req, res) => {
       }
   
       await orderRef.update({ status });
-      await logApiCall(`Order ${orderId} updated to ${status}` );
+      await logApiCall(`Order : ${orderId}  updated to ${status}` );
   
       return res.status(200).json({ message: `Order ${orderId} updated to ${status}` });
     } catch (error) {
@@ -520,7 +520,7 @@ exports.changeOrderStatue= async (req, res) => {
   
       // Update the status of the order in the orders collection to "assigning"
       await orderRef.update({ status: "assigning" });
-      await logApiCall(`Order ${orderId} assigned to Delivery App at ${supplycoId}` );
+      await logApiCall(`Order:${orderId} assigned to Delivery App at ${supplycoId}` );
   
       // Respond with success
       res.status(200).json({ message: "Order assigned for delivery successfully.", orderId });
