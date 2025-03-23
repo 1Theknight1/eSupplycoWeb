@@ -231,3 +231,146 @@ exports.calcDiscount = async (req, res) => {
     res.status(500).json({ error: "Internal server error", details: error.message });
   }
 };
+
+
+//getBill
+exports.getBill = async (req, res) => {
+  try {
+    const { cardNumber, supplycoId, products } = req.body;
+
+    // Input validation
+    if (!cardNumber || !supplycoId || !products || !Array.isArray(products)) {
+      return res.status(400).json({ message: "Invalid request format." });
+    }
+
+    let userData = null;
+    let usedQuota = {};
+    let isNonUser = false;
+
+    // Check if user exists in "users" collection (eSupplyco user)
+    let userDoc = await db.collection("users").doc(cardNumber).get();
+    if (userDoc.exists) {
+      userData = userDoc.data();
+      usedQuota = userData.usedQuota || {};
+    } else {
+      // If not found, check in "nonUsers" collection (non-eSupplyco user)
+      let nonUserDoc = await db.collection("nonUsers").doc(cardNumber).get();
+      if (nonUserDoc.exists) {
+        userData = nonUserDoc.data();
+        usedQuota = userData.usedQuota || {};
+        isNonUser = true;
+      } else {
+        // First-time non-eSupplyco user → Fetch from rationCardHolder
+        let rationDoc = await db.collection("rationCardHolder").doc(cardNumber).get();
+        if (!rationDoc.exists) {
+          return res.status(400).json({ message: "Ration card details not found." });
+        }
+        const rationData = rationDoc.data();
+        userData = { rationType: rationData.rationType }; // Fetch ration type
+        usedQuota = {}; // Initialize empty usedQuota
+        isNonUser = true;
+      }
+    }
+
+    const rationType = userData.rationType;
+    const currentMonthYear = new Date().toLocaleString("default", { month: "long", year: "numeric" });
+
+    // Fetch quota details
+    const quotaDoc = await db.collection("monthlyQuotas").doc(currentMonthYear).get();
+    if (!quotaDoc.exists) {
+      return res.status(400).json({ message: "Quota details not found for the current month." });
+    }
+    const quotaData = quotaDoc.data();
+    const quotaProducts = quotaData.products;
+
+    let totalFinalPrice = 0;
+    let purchasedProducts = [];
+
+    for (const item of products) {
+      const { productId, quantity } = item;
+
+      // Validate quantity
+      if (typeof quantity !== "number" || quantity <= 0) {
+        return res.status(400).json({ message: `Invalid quantity for product ${productId}.` });
+      }
+
+      // Fetch product details
+      const productDoc = await db.collection("supplycos").doc(supplycoId).collection("products").doc(productId).get();
+      if (!productDoc.exists) {
+        return res.status(400).json({ message: `Product ${productId} not found.` });
+      }
+
+      const productData = productDoc.data();
+      const unit = productData.unit || "none";
+      const subsidizedPrice = productData.subsidizedPrice || 0;
+      const marketPrice = productData.marketPrice || 0;
+
+      // Find quota details
+      const quotaProduct = quotaProducts.find(p => p.name === productId);
+      if (!quotaProduct) {
+        return res.status(400).json({ message: `Quota details not found for product ${productId}.` });
+      }
+
+      const quotaLimit = quotaProduct.quota[rationType] || 0;
+      const remainingQuotaForProduct = quotaLimit - (usedQuota[productId] || 0);
+
+      let subsidizedQuantity = Math.min(quantity, remainingQuotaForProduct);
+      let excessQuantity = Math.max(quantity - remainingQuotaForProduct, 0);
+
+      // Calculate prices
+      const subsidizedTotal = subsidizedQuantity * subsidizedPrice;
+      const marketTotal = excessQuantity * marketPrice;
+      const totalPrice = subsidizedTotal + marketTotal;
+
+      // Update used quota
+      usedQuota[productId] = (usedQuota[productId] || 0) + subsidizedQuantity;
+
+      // Add to purchased products
+      purchasedProducts.push({
+        unit,
+        productId,
+        quantity,
+        subsidizedQuantity,
+        excessQuantity,
+        subsidizedPrice,
+        marketPrice,
+        subsidizedTotal,
+        marketTotal,
+        totalPrice,
+      });
+
+      totalFinalPrice += totalPrice;
+    }
+
+    // Store purchase details in Firestore
+    const billData = {
+      cardNumber,
+      rationType,
+      supplycoId,
+      purchasedProducts,
+      totalFinalPrice,
+      timestamp: new Date(),
+    };
+
+    await db.collection("bills").add(billData);
+
+    // Update user's used quota
+    if (isNonUser) {
+      await db.collection("nonUsers").doc(cardNumber).set(
+        { rationType, usedQuota },
+        { merge: true }
+      );
+    } else {
+      await db.collection("users").doc(cardNumber).update({ usedQuota });
+    }
+
+    res.status(200).json({
+      message: "Bill generated successfully",
+      data: billData,
+    });
+
+  } catch (error) {
+    console.error("❌ Error generating bill:", error.message, error.stack);
+    res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
