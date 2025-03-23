@@ -118,33 +118,30 @@ exports.calcDiscount = async (req, res) => {
   try {
     const { cardNumber, supplycoId, products } = req.body;
 
+    // Input validation
     if (!cardNumber || !supplycoId || !products || !Array.isArray(products)) {
       return res.status(400).json({ message: "Invalid request format." });
     }
 
-    // Check if user exists in 'users' collection
-    let userDoc = await db.collection("users").doc(cardNumber).get();
-    let isEsupplycoUser = userDoc.exists;
-    let userData, rationType, usedQuota = {};
+    let userData = null;
+    let usedQuota = {}; // Default: No used quota for non-eSupplyco users
 
-    if (isEsupplycoUser) {
+    // Check if user exists in "users" collection (eSupplyco user)
+    let userDoc = await db.collection("users").doc(cardNumber).get();
+    if (userDoc.exists) {
       userData = userDoc.data();
-      rationType = userData.rationType;
-      usedQuota = userData.usedQuota || {};
+      usedQuota = userData.usedQuota || {}; // Fetch used quota
     } else {
-      // Check in 'rationCardHolder'
-      const rationDoc = await db.collection("rationCardHolder").doc(cardNumber).get();
-      if (!rationDoc.exists) {
+      // If not found, check in "rationCardHolder" collection (non-eSupplyco user)
+      let rationCardDoc = await db.collection("rationCardHolder").doc(cardNumber).get();
+      if (rationCardDoc.exists) {
+        userData = rationCardDoc.data();
+      } else {
         return res.status(400).json({ message: "User not found." });
       }
-
-      userData = rationDoc.data();
-      rationType = userData.rationType;
-      
-      // Fetch used quota from 'nonUsers' collection
-      const nonUserDoc = await db.collection("nonUsers").doc(cardNumber).get();
-      usedQuota = nonUserDoc.exists ? (nonUserDoc.data().usedQuota || {}) : {};
     }
+
+    const rationType = userData.rationType; // APL or BPL
 
     // Fetch quota details for the current month
     const currentMonthYear = new Date().toLocaleString("default", { month: "long", year: "numeric" });
@@ -154,45 +151,39 @@ exports.calcDiscount = async (req, res) => {
     }
 
     const quotaData = quotaDoc.data();
-    const quotaProducts = quotaData.products;
+    const quotaProducts = quotaData.products; // List of products with quota limits
 
     let totalFinalPrice = 0;
     let responseProducts = [];
-    let newUsedQuota = { ...usedQuota };
-    let purchaseHistory = [];
+    let remainingQuota = {};
 
     // Process each product
     for (const item of products) {
       const { productId, quantity } = item;
 
+      // Validate quantity
       if (typeof quantity !== "number" || quantity <= 0) {
         return res.status(400).json({ message: `Invalid quantity for product ${productId}.` });
       }
 
       // Fetch product details
-      const productDoc = await db
-        .collection("supplycos")
-        .doc(supplycoId)
-        .collection("products")
-        .doc(productId)
-        .get();
-
+      const productDoc = await db.collection("supplycos").doc(supplycoId).collection("products").doc(productId).get();
       if (!productDoc.exists) {
         return res.status(400).json({ message: `Product ${productId} not found.` });
       }
 
       const productData = productDoc.data();
       const unit = productData.unit || "none";
-      const subsidizedPrice = productData.subsidizedPrice || 0;
-      const marketPrice = productData.marketPrice || 0;
+      const subsidizedPrice = productData.subsidizedPrice || 0; // Subsidized price
+      const marketPrice = productData.marketPrice || 0; // Market price
 
-      // Find quota details
+      // Find quota details for the product
       const quotaProduct = quotaProducts.find((p) => p.name === productId);
       if (!quotaProduct) {
         return res.status(400).json({ message: `Quota details not found for product ${productId}.` });
       }
 
-      const quotaLimit = quotaProduct.quota[rationType] || 0;
+      const quotaLimit = quotaProduct.quota[rationType] || 0; // Quota limit for the user's ration type
       const remainingQuotaForProduct = quotaLimit - (usedQuota[productId] || 0);
 
       let subsidizedQuantity = Math.min(quantity, remainingQuotaForProduct);
@@ -203,25 +194,13 @@ exports.calcDiscount = async (req, res) => {
       const marketTotal = excessQuantity * marketPrice;
       const totalPrice = subsidizedTotal + marketTotal;
 
-      // Update new used quota
-      newUsedQuota[productId] = (newUsedQuota[productId] || 0) + subsidizedQuantity;
+      // Update remaining quota (for response only, not saved to DB yet)
+      remainingQuota[productId] = remainingQuotaForProduct - subsidizedQuantity;
 
-      // Add purchase details
-      purchaseHistory.push({
-        productId,
-        quantity,
-        subsidizedQuantity,
-        excessQuantity,
-        subsidizedPrice,
-        marketPrice,
-        subsidizedTotal,
-        marketTotal,
-        totalPrice,
-        date: admin.firestore.Timestamp.now(),
-      });
-
+      // Update totals
       totalFinalPrice += totalPrice;
 
+      // Add product details to response
       responseProducts.push({
         unit,
         productId,
@@ -236,19 +215,7 @@ exports.calcDiscount = async (req, res) => {
       });
     }
 
-    // Update used quota
-    if (isEsupplycoUser) {
-      await db.collection("users").doc(cardNumber).update({ usedQuota: newUsedQuota });
-    } else {
-      await db.collection("nonUsers").doc(cardNumber).set(
-        {
-          usedQuota: newUsedQuota,
-          purchaseHistory: admin.firestore.FieldValue.arrayUnion(...purchaseHistory),
-        },
-        { merge: true }
-      );
-    }
-
+    // Send response
     res.status(200).json({
       message: "Quota calculated successfully",
       data: {
@@ -256,7 +223,7 @@ exports.calcDiscount = async (req, res) => {
         rationType,
         products: responseProducts,
         totalFinalPrice,
-        remainingQuota: newUsedQuota,
+        remainingQuota,
       },
     });
   } catch (error) {
