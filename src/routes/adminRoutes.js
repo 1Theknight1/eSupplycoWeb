@@ -1,7 +1,7 @@
 /* eslint-disable */
 
 const express=require("express")
-const {productsAdd,supplycoAdd,supplycoAll,deleteUser,sendMessage,setReminder,setQuota,staffRequests,staffUpdateStatus,adminDashboard,addPrimaryAdmin}=require("../../src/controllers/adminController")
+const {productsAdd,supplycoAdd,supplycoAll,deleteUser,sendMessage,setReminder,setQuota,staffRequests,staffUpdateStatus,adminDashboard,addPrimaryAdmin,getAllLogs}=require("../../src/controllers/adminController")
 const {authenticateUser}=require("../../src/middlewares/authMiddleware")
 
 const router=express.Router()
@@ -17,5 +17,6 @@ router.get("/staff-requests",staffRequests)
 router.put("/updateStatus",staffUpdateStatus)
 router.get("/adminDashboard",adminDashboard)
 router.post("/addPrimaryAdmin",addPrimaryAdmin)
+router.get("/getAllLogs",getAllLogs)
 
 module.exports=router
