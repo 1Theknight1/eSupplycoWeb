@@ -9,13 +9,13 @@ const admin=require("firebase-admin")
 // const storage = multer.memoryStorage(); // Store files in memory before uploading to Firebase
 const bucket = admin.storage().bucket();
 
-async function logApiCall(userId, action) {
+async function logApiCall(action) {
   const logRef = db.collection("logs").doc();
   await logRef.set({
-   
     action: action, // Custom action description
     timestamp: admin.firestore.FieldValue.serverTimestamp(),
   });
+  console.log("saved staff log");
 }
 
 //get orders of supplyco

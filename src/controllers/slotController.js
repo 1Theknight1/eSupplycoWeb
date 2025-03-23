@@ -4,13 +4,14 @@ const {db,rtdb}=require("../utils/firebase-config")
 const admin=require("firebase-admin")
 
 
-async function logApiCall(userId, action) {
+async function logApiCall( action) {
   const logRef = db.collection("logs").doc();
   await logRef.set({
    
     action: action, // Custom action description
     timestamp: admin.firestore.FieldValue.serverTimestamp(),
   });
+  console.log("saved slot log");
 }
 
 exports.bookSlot = async (req, res) => {

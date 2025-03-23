@@ -4,12 +4,13 @@ const admin = require("firebase-admin");
 const { setCardNumberClaim } = require("../middlewares/authMiddleware");
 const { db } = require("../utils/firebase-config");
 
-async function logApiCall( userId, action) {
+async function logApiCall(  action) {
   const logRef = db.collection("logs").doc();
   await logRef.set({
     action: action, // Custom action description
     timestamp: admin.firestore.FieldValue.serverTimestamp(),
   });
+  console.log("saved auth log");
 }
 
 // 1️⃣ ✅ REGISTER USER

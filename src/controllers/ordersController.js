@@ -4,13 +4,14 @@ const admin=require("firebase-admin")
 const {db,rtdb}=require("../utils/firebase-config")
 
 
-async function logApiCall( userId, action) {
+async function logApiCall( action) {
   const logRef = db.collection("logs").doc();
   await logRef.set({
    
     action: action, // Custom action description
     timestamp: admin.firestore.FieldValue.serverTimestamp(),
   });
+  console.log("saved orders log");
 }
 
 exports.placeOrder = async (req, res) => {
