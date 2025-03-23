@@ -440,7 +440,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
         });
       } else if(status=="denied"){
         await db.collection("staffRequest").doc(requestId).delete();
-        return res.status(200).json({ error: "Successfully denied the request" });
+        return res.status(200).json({ message: "Successfully denied the request" });
 
       }else {
         return res.status(400).json({ error: "Invalid status or no action required" });

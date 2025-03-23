@@ -376,7 +376,7 @@ exports.updateStock= async (req, res) => {
     // Update stock in Realtime Database
     await stockRef.set({
       stock: newStock,
-      updatedAt: admin.database.ServerValue.TIMESTAMP,
+      
     });
 
     res.json({ success: true, message: "Stock updated successfully" });
