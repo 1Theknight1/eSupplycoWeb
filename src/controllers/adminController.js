@@ -409,15 +409,15 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
         });
   
         // 🔹 Assign role in Firestore
-        await db.collection("users").doc(newSupplycoId).set({
-          uid: newSupplycoId,
-          email: requestData.email,
-          role: "supplyco-owner",
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        // await db.collection("users").doc(newSupplycoId).set({
+        //   uid: newSupplycoId,
+        //   email: requestData.email,
+        //   role: "supplyco-owner",
+        //   createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        // });
   
         // 🔹 Copy products & add to Realtime Database
-        await copyProductsToNewSupplyco("supplyco_001", newSupplycoId);
+        await copyProductsToNewSupplyco("supplyco_007", newSupplycoId);
         await addProductsToRTDB(newSupplycoId);
   
         // 🔹 Send email with credentials
@@ -450,7 +450,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
     const snapshot = await db.collection("supplycos").orderBy("supplycoId", "desc").limit(1).get();
     
     if (snapshot.empty) {
-      return "supplyco_003"; // Start from supplyco_003 if no entries exist
+      return "supplyco_001"; // Start from supplyco_003 if no entries exist
     } else {
       const lastId = snapshot.docs[0].data().supplycoId; // Get the last supplycoId
       const lastNumber = parseInt(lastId.split("_")[1]); // Extract the numeric part
@@ -532,5 +532,49 @@ exports.adminDashboard= async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch data", details: error.message });
+  }
+};
+
+
+exports.addPrimaryAdmin = async (req, res) => {
+  try {
+    const { email, password, uid, role, name } = req.body;
+    
+    // Check if the admin already exists in Firestore
+    const adminRef = db.collection("admin").doc(uid);
+    const adminDoc = await adminRef.get();
+
+    if (adminDoc.exists) {
+      return res.status(400).json({ error: "Admin already exists" });
+    }
+
+    // Create admin in Firebase Authentication first
+    const adminRecord = await auth.createUser({
+      uid: uid,
+      email: email,
+      emailVerified: true,
+      password: password, 
+      displayName: name,
+      disabled: false,
+    });
+
+    // Hash the password before storing in Firestore
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Store admin details in Firestore
+    await adminRef.set({
+      userid: uid,
+      password: hashedPassword,
+      email: email,
+      role: role,
+      name: name,
+    });
+
+    res.status(200).json({
+      message: "Admin successfully registered",
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
