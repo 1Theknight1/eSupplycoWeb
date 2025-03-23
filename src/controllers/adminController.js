@@ -438,7 +438,11 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
           message: `Staff request approved and added as ${newSupplycoId}. User created, email sent.`,
           user: userRecord,
         });
-      } else {
+      } else if(status=="denied"){
+        await db.collection("staffRequest").doc(requestId).delete();
+        return res.status(200).json({ error: "Successfully denied the request" });
+
+      }else {
         return res.status(400).json({ error: "Invalid status or no action required" });
       }
     } catch (error) {
