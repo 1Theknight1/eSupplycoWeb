@@ -371,7 +371,7 @@ exports.updateStock= async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    const stockRef = db.ref(`stock_updates/${supplycoId}/${productName}`);
+    const stockRef = rtdb.ref(`stock_updates/${supplycoId}/${productName}`);
 
     // Update stock in Realtime Database
     await stockRef.set({
