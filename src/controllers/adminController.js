@@ -327,13 +327,13 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
   };
   
   //get staff requests
-  exports.staffRequests= async (req, res) => {
+  exports.staffRequests = async (req, res) => {
     try {
       const staffRequestsRef = db.collection("staffRequest");
       const snapshot = await staffRequestsRef.get();
   
       if (snapshot.empty) {
-        return res.status(404).json({ message: "No staff requests found." });
+        return res.status(200).json([]); // ✅ Return immediately
       }
   
       const staffRequests = snapshot.docs.map(doc => ({
@@ -347,6 +347,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
       res.status(500).json({ error: "Internal Server Error" });
     }
   };
+  
   function generateRandomPassword() {
     return uuidv4().slice(0, 8); // Generates an 8-character password
   }
