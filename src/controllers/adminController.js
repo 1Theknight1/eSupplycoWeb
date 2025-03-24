@@ -1,10 +1,10 @@
 /* eslint-disable */
 
 const admin=require("firebase-admin")
-const {db,rtdb,auth,fcm}=require("../utils/firebase-config")
+const {db,rtdb,auth}=require("../utils/firebase-config")
 const {authenticateUser}=require("../middlewares/authMiddleware")
 const functions = require("firebase-functions");
-
+const fcm = admin.messaging();
 const bcrypt = require("bcryptjs"); // Use bcryptjs instead of bcrypt
 const nodemailer = require("nodemailer");
 const { v4: uuidv4 } = require("uuid");
@@ -285,145 +285,46 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
 
 
   //add quota monthly
-  exports.setQuota = async (req, res) => {
+  exports.setQuota= async (req, res) => {
     try {
-        const { monthYear, products } = req.body;
-
-        // ===== INPUT VALIDATION =====
-        if (!monthYear || typeof monthYear !== 'string') {
-            return res.status(400).json({ 
-                success: false,
-                message: "MonthYear is required and must be a string (format: MM-YYYY)." 
-            });
+      const { monthYear, products } = req.body;
+  
+      // Input validation
+      if (!monthYear || !products || !Array.isArray(products)) {
+        return res.status(400).json({ message: "Invalid request format." });
+      }
+  
+      // Validate products array
+      for (const product of products) {
+        if (!product.name || !product.quota) {
+          return res.status(400).json({ message: "Invalid product format." });
         }
-
-        // Validate monthYear format (MM-YYYY)
-        if (!/^(0[1-9]|1[0-2])-20\d{2}$/.test(monthYear)) {
-            return res.status(400).json({ 
-                success: false,
-                message: "Invalid monthYear format. Please use MM-YYYY format (e.g., 04-2025)." 
-            });
+        // if (!product.quota.APL || !product.quota.BPL) {
+        //   return res.status(400).json({ message: "Quota must be specified for all card types (APL, BPL)." });
+        // }
+      }
+  
+      // Save quota details to Firestore
+      const quotaRef = db.collection('monthlyQuotas').doc(monthYear);
+      await quotaRef.set({
+        monthYear,
+        products
+      });
+  
+      // Return success response
+      res.status(200).json({
+        message: `Quota set successfully for ${monthYear}`,
+        data: {
+          monthYear,
+          products
         }
-
-        if (!products || !Array.isArray(products) || products.length === 0) {
-            return res.status(400).json({ 
-                success: false,
-                message: "Products array is required and must contain at least one product." 
-            });
-        }
-
-        // Validate each product in the array
-        const validProducts = [];
-        for (const product of products) {
-            if (!product.name || typeof product.name !== 'string' || product.name.trim() === '') {
-                return res.status(400).json({ 
-                    success: false,
-                    message: "Product name is required and must be a non-empty string." 
-                });
-            }
-
-            // Validate quota object structure
-            if (!product.quota || typeof product.quota !== 'object' || product.quota === null) {
-                return res.status(400).json({ 
-                    success: false,
-                    message: `Quota object is required for product ${product.name}.` 
-                });
-            }
-
-            // Validate APL and BPL values
-            if (typeof product.quota.APL !== 'number' || product.quota.APL < 0 ||
-                typeof product.quota.BPL !== 'number' || product.quota.BPL < 0) {
-                return res.status(400).json({ 
-                    success: false,
-                    message: `Invalid quota values for product ${product.name}. Both APL and BPL must be positive numbers.` 
-                });
-            }
-
-            validProducts.push({
-                name: product.name.trim(),
-                quota: {
-                    APL: product.quota.APL,
-                    BPL: product.quota.BPL
-                },
-                unit: product.unit || 'units', // default unit if not provided
-                category: product.category || 'general' // default category
-            });
-        }
-
-        // ===== DATABASE OPERATION =====
-        const quotaRef = db.collection('monthlyQuotas').doc(monthYear);
-        const docSnapshot = await quotaRef.get();
-
-        // Check if quota already exists for this month
-        if (docSnapshot.exists) {
-            return res.status(409).json({ 
-                success: false,
-                message: `Quota for ${monthYear} already exists. Use update endpoint to modify.` 
-            });
-        }
-
-        // Save to Firestore with timestamp
-        await quotaRef.set({ 
-            monthYear, 
-            products: validProducts,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        });
-
-        // ===== NOTIFICATION SYSTEM =====
-        let notificationResponse = null;
-        try {
-            // Get all users and extract FCM tokens
-            const usersSnapshot = await db.collection('users').get();
-            const tokens = usersSnapshot.docs
-                .map(doc => doc.data().fcmToken)
-                .filter(token => token && typeof token === 'string');
-
-            if (tokens.length > 0) {
-                const message = {
-                    tokens,
-                    notification: {
-                        title: "New Quota Update 📢",
-                        body: `The quota for ${monthYear} has been updated! Check the app for details.`,
-                    },
-                    data: {
-                        type: 'quota_update',
-                        monthYear,
-                        click_action: 'FLUTTER_NOTIFICATION_CLICK'
-                    }
-                };
-
-                notificationResponse = await admin.messaging().sendMulticast(message);
-                console.log(`📨 Notifications sent to ${tokens.length} users`);
-            } else {
-                console.log("No valid FCM tokens found for quota notifications");
-            }
-        } catch (fcmError) {
-            console.error("⚠️ FCM Error:", fcmError.message);
-        }
-
-        // ===== SUCCESS RESPONSE =====
-        res.status(200).json({
-            success: true,
-            message: `Quota set successfully for ${monthYear}`,
-            data: { 
-                monthYear, 
-                products: validProducts,
-                notificationCount: notificationResponse?.successCount || 0
-            }
-        });
-
+      });
+  
     } catch (error) {
-        console.error("❌ Server Error:", error);
-        
-        res.status(500).json({ 
-            success: false,
-            message: "Internal server error",
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+      console.error("❌ Error setting quota:", error.message, error.stack);
+      res.status(500).json({ error: "Internal server error", details: error.message });
     }
-};
-
+  };
   
   //get staff requests
   exports.staffRequests = async (req, res) => {
