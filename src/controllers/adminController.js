@@ -331,7 +331,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
           },
         };
   
-        const response = await fcm.sendEachForMulticast(message);
+        const response = await fcm.sendMulticast(message); // ✅ Correct function
         console.log("✅ Notification sent successfully:", response);
       }
   
