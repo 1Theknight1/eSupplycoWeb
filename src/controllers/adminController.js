@@ -285,7 +285,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
 
 
   //add quota monthly
-  exports.setQuota= async (req, res) => {
+  exports.setQuota = async (req, res) => {
     try {
       const { monthYear, products } = req.body;
   
@@ -299,27 +299,50 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
         if (!product.name || !product.quota) {
           return res.status(400).json({ message: "Invalid product format." });
         }
-        // if (!product.quota.APL || !product.quota.BPL) {
-        //   return res.status(400).json({ message: "Quota must be specified for all card types (APL, BPL)." });
-        // }
       }
   
       // Save quota details to Firestore
-      const quotaRef = db.collection('monthlyQuotas').doc(monthYear);
-      await quotaRef.set({
-        monthYear,
-        products
+      const quotaRef = db.collection("monthlyQuotas").doc(monthYear);
+      await quotaRef.set({ monthYear, products });
+  
+      // Fetch all users' FCM tokens
+      const usersSnapshot = await db.collection("users").get();
+      const fcmTokens = [];
+  
+      usersSnapshot.forEach((doc) => {
+        const userData = doc.data();
+        if (userData.fcmToken) {
+          fcmTokens.push(userData.fcmToken);
+        }
       });
+  
+      console.log(`📢 Sending notifications to ${fcmTokens.length} users`);
+  
+      // If there are FCM tokens, send notifications
+      if (fcmTokens.length > 0) {
+        const message = {
+          tokens: fcmTokens, // Multicast message
+          notification: {
+            title: "New Monthly Quota Available",
+            body: `The quota for ${monthYear} has been updated. Check now!`,
+          },
+          data: {
+            monthYear: monthYear,
+          },
+        };
+  
+        const response = await fcm.sendEachForMulticast(message);
+        console.log("✅ Notification sent successfully:", response);
+      }
   
       // Return success response
       res.status(200).json({
         message: `Quota set successfully for ${monthYear}`,
         data: {
           monthYear,
-          products
-        }
+          products,
+        },
       });
-  
     } catch (error) {
       console.error("❌ Error setting quota:", error.message, error.stack);
       res.status(500).json({ error: "Internal server error", details: error.message });
