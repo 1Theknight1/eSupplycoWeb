@@ -339,7 +339,6 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
                 });
             }
 
-            // Add additional validation for other required fields if needed
             validProducts.push({
                 name: product.name.trim(),
                 quota: {
@@ -374,11 +373,8 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
         // ===== NOTIFICATION SYSTEM =====
         let notificationResponse = null;
         try {
-            // Get only users who have opted in for quota notifications
-            const usersSnapshot = await db.collection('users')
-                .where('notificationPreferences.quotaUpdates', '==', true)
-                .get();
-
+            // Get all users and extract FCM tokens
+            const usersSnapshot = await db.collection('users').get();
             const tokens = usersSnapshot.docs
                 .map(doc => doc.data().fcmToken)
                 .filter(token => token && typeof token === 'string');
@@ -404,7 +400,6 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
             }
         } catch (fcmError) {
             console.error("⚠️ FCM Error:", fcmError.message);
-            // Don't fail the whole operation if FCM fails
         }
 
         // ===== SUCCESS RESPONSE =====
@@ -428,6 +423,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
         });
     }
 };
+
   
   //get staff requests
   exports.staffRequests = async (req, res) => {
