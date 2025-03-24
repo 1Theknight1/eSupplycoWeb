@@ -301,7 +301,7 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
         if (!/^(0[1-9]|1[0-2])-20\d{2}$/.test(monthYear)) {
             return res.status(400).json({ 
                 success: false,
-                message: "Invalid monthYear format. Please use MM-YYYY format (e.g., 06-2023)." 
+                message: "Invalid monthYear format. Please use MM-YYYY format (e.g., 04-2025)." 
             });
         }
 
@@ -322,17 +322,30 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
                 });
             }
 
-            if (typeof product.quota !== 'number' || product.quota < 0) {
+            // Validate quota object structure
+            if (!product.quota || typeof product.quota !== 'object' || product.quota === null) {
                 return res.status(400).json({ 
                     success: false,
-                    message: `Invalid quota for product ${product.name}. Quota must be a positive number.` 
+                    message: `Quota object is required for product ${product.name}.` 
                 });
             }
 
-            // Add additional product fields if they exist
+            // Validate APL and BPL values
+            if (typeof product.quota.APL !== 'number' || product.quota.APL < 0 ||
+                typeof product.quota.BPL !== 'number' || product.quota.BPL < 0) {
+                return res.status(400).json({ 
+                    success: false,
+                    message: `Invalid quota values for product ${product.name}. Both APL and BPL must be positive numbers.` 
+                });
+            }
+
+            // Add additional validation for other required fields if needed
             validProducts.push({
                 name: product.name.trim(),
-                quota: product.quota,
+                quota: {
+                    APL: product.quota.APL,
+                    BPL: product.quota.BPL
+                },
                 unit: product.unit || 'units', // default unit if not provided
                 category: product.category || 'general' // default category
             });
@@ -381,14 +394,6 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
                         type: 'quota_update',
                         monthYear,
                         click_action: 'FLUTTER_NOTIFICATION_CLICK'
-                    },
-                    apns: {
-                        payload: {
-                            aps: {
-                                sound: 'default',
-                                badge: 1
-                            }
-                        }
                     }
                 };
 
@@ -416,14 +421,6 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
     } catch (error) {
         console.error("❌ Server Error:", error);
         
-        // More specific error handling
-        if (error.code === 'resource-exhausted') {
-            return res.status(429).json({ 
-                success: false,
-                message: "Too many requests. Please try again later." 
-            });
-        }
-
         res.status(500).json({ 
             success: false,
             message: "Internal server error",
