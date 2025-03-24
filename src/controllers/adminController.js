@@ -1,10 +1,10 @@
 /* eslint-disable */
 
 const admin=require("firebase-admin")
-const {db,rtdb,auth}=require("../utils/firebase-config")
+const {db,rtdb,auth,fcm}=require("../utils/firebase-config")
 const {authenticateUser}=require("../middlewares/authMiddleware")
 const functions = require("firebase-functions");
-const fcm = admin.messaging();
+
 const bcrypt = require("bcryptjs"); // Use bcryptjs instead of bcrypt
 const nodemailer = require("nodemailer");
 const { v4: uuidv4 } = require("uuid");
@@ -287,67 +287,57 @@ exports.setReminder = functions.https.onRequest(async (req, res) => {
   //add quota monthly
   exports.setQuota = async (req, res) => {
     try {
-      const { monthYear, products } = req.body;
-  
-      // Input validation
-      if (!monthYear || !products || !Array.isArray(products)) {
-        return res.status(400).json({ message: "Invalid request format." });
-      }
-  
-      // Validate products array
-      for (const product of products) {
-        if (!product.name || !product.quota) {
-          return res.status(400).json({ message: "Invalid product format." });
+        const { monthYear, products } = req.body;
+
+        // Input validation
+        if (!monthYear || !products || !Array.isArray(products)) {
+            return res.status(400).json({ message: "Invalid request format." });
         }
-      }
-  
-      // Save quota details to Firestore
-      const quotaRef = db.collection("monthlyQuotas").doc(monthYear);
-      await quotaRef.set({ monthYear, products });
-  
-      // Fetch all users' FCM tokens
-      const usersSnapshot = await db.collection("users").get();
-      const fcmTokens = [];
-  
-      usersSnapshot.forEach((doc) => {
-        const userData = doc.data();
-        if (userData.fcmToken) {
-          fcmTokens.push(userData.fcmToken);
+
+        // Validate products array
+        for (const product of products) {
+            if (!product.name || !product.quota) {
+                return res.status(400).json({ message: "Invalid product format." });
+            }
         }
-      });
-  
-      console.log(`📢 Sending notifications to ${fcmTokens.length} users`);
-  
-      // If there are FCM tokens, send notifications
-      if (fcmTokens.length > 0) {
-        const message = {
-          tokens: fcmTokens, // Multicast message
-          notification: {
-            title: "New Monthly Quota Available",
-            body: `The quota for ${monthYear} has been updated. Check now!`,
-          },
-          data: {
-            monthYear: monthYear,
-          },
-        };
-  
-        const response = await fcm.sendMulticast(message); // ✅ Correct function
-        console.log("✅ Notification sent successfully:", response);
-      }
-  
-      // Return success response
-      res.status(200).json({
-        message: `Quota set successfully for ${monthYear}`,
-        data: {
-          monthYear,
-          products,
-        },
-      });
+
+        // Save quota details to Firestore
+        const quotaRef = db.collection('monthlyQuotas').doc(monthYear);
+        await quotaRef.set({ monthYear, products });
+
+        // Fetch all users' FCM tokens from Firestore
+        const usersSnapshot = await db.collection('users').get();
+        const tokens = usersSnapshot.docs
+            .map(doc => doc.data().fcmToken)
+            .filter(token => token); // Remove empty tokens
+
+        if (tokens.length > 0) {
+            // Prepare FCM notification
+            const message = {
+                tokens, // Send to multiple users
+                notification: {
+                    title: "New Quota Update 📢",
+                    body: `The quota for ${monthYear} has been updated! Check the app for details.`,
+                },
+            };
+
+            // Send FCM notifications
+            const response = await admin.messaging().sendMulticast(message);
+            console.log("✅ FCM Notifications Sent:", response);
+        }
+
+        // Return success response
+        res.status(200).json({
+            message: `Quota set successfully for ${monthYear}`,
+            data: { monthYear, products }
+        });
+
     } catch (error) {
-      console.error("❌ Error setting quota:", error.message, error.stack);
-      res.status(500).json({ error: "Internal server error", details: error.message });
+        console.error("❌ Error setting quota:", error.message);
+        res.status(500).json({ error: "Internal server error", details: error.message });
     }
-  };
+};
+
   
   //get staff requests
   exports.staffRequests = async (req, res) => {
