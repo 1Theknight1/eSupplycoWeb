@@ -32,7 +32,7 @@ exports.productsAdd = async (req, res) => {
       available,
       description
     } = req.body;
-app
+
     if (!name) {
       return res.status(400).json({ error: "Product ID and name are required" });
     }
@@ -56,8 +56,10 @@ app
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    // 🔄 Loop through each Supplyco and add the product
+    // 🔄 Firestore Batch & RTDB Updates
     const batch = db.batch();
+    const stockUpdatePromises = [];
+
     for (const supplycoDoc of supplycosSnapshot.docs) {
       const supplycoId = supplycoDoc.id;
       const productRef = db.collection("supplycos").doc(supplycoId).collection("products").doc(name);
@@ -65,19 +67,18 @@ app
 
       // 🔥 Update Stock & Availability in RTDB
       const stockUpdateRef = rtdb.ref(`stock_updates/${supplycoId}/${name}`);
-      await stockUpdateRef.set({ stock, available });
+      stockUpdatePromises.push(stockUpdateRef.set({ stock, available }));
     }
 
     await batch.commit(); // Execute Firestore batch writes
+    await Promise.all(stockUpdatePromises); // Wait for all RTDB updates
 
     return res.status(201).json({ message: "Product added to all supplycos", name });
   } catch (error) {
-    console.error("🔥 Error adding product:", error);
-    return res.status(500).json({ error: "Internal Server Error" });
+    console.error("🔥 Error adding product:", error.message);
+    return res.status(500).json({ error: "Internal Server Error", details: error.message });
   }
 };
-
-
 
   //2).Supplyco Add
   exports.supplycoAdd= authenticateUser, async (req, res) => {
