@@ -1,7 +1,7 @@
 /* eslint-disable */
 
 const express=require("express")
-const{getSupplycoOrders,staffRegister,staffLogin,addSlot,getAllSlotsForSUpplyco,getSupplycoDetails,getSlotByCardNumber,checkPickup,updateStock,registerDeliveryBoy,getDeliveryRequestsBySupplyco}=require("../../src/controllers/staffController")
+const{getSupplycoOrders,staffRegister,staffLogin,addSlot,getAllSlotsForSUpplyco,getSupplycoDetails,getSlotByCardNumber,checkPickup,updateStock,registerDeliveryBoy,getDeliveryRequestsBySupplyco,updateDeliveryRequestStatus}=require("../../src/controllers/staffController")
 const router=express.Router()
 
 router.get("/orders/supplyco/:supplycoId",getSupplycoOrders)
@@ -15,5 +15,6 @@ router.post("/check-order",checkPickup)
 router.post("/update-stock",updateStock)
 router.post("/registerDeliveryBoy",registerDeliveryBoy)
 router.get("/delivery/request/:supplycoId",getDeliveryRequestsBySupplyco)
+router.get("/delivery/request/status/:requestId",getDeliveryRequestsBySupplyco)
 
 module.exports=router
