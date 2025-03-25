@@ -388,8 +388,6 @@ exports.updateStock= async (req, res) => {
 
 //register deliveryboy
 
-const admin = require("firebase-admin");
-const db = admin.firestore();
 
 exports.registerDeliveryBoy = async (req, res) => {
     try {
