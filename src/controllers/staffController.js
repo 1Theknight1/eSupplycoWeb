@@ -437,7 +437,7 @@ exports.registerDeliveryBoy = async (req, res) => {
       };
 
       const docRef = await db.collection("deliveryReq").add(newDeliveryBoy);
-
+      logApiCall(`${name} requested at ${supplycoId} for delivery boy`)
       console.log(`✅ Delivery Boy Registered: ${docRef.id}`);
       res.status(201).json({ message: "Registration successful!", deliveryBoyId: docRef.id });
 
@@ -544,10 +544,10 @@ exports.updateDeliveryRequestStatus = async (req, res) => {
             await deliveryBoyRef.doc(newDeliveryId).set(newDeliveryBoy);
 
             console.log(`✅ Delivery Boy Registered: ${newDeliveryId}`);
-
+            logApiCall(`${newDeliveryId} has been assigned to ${requestData.name}`)
             // ✅ Send Email with Credentials
             const mailOptions = {
-                from: "your-email@gmail.com", // 🔹 Replace with your email
+                from: "esupplyco3@gmail.com", // 🔹 Replace with your email
                 to: requestData.email,
                 subject: "eSupplyco - Delivery Boy Registration Approved",
                 text: `Hello ${requestData.name},\n\nYour registration as a delivery boy has been approved.\n\nYour login credentials:\nUsername: ${requestData.email}\nPassword: ${generatedPassword}\n\nPlease change your password after logging in.\n\nBest Regards,\neSupplyco Team`,
