@@ -388,6 +388,9 @@ exports.updateStock= async (req, res) => {
 
 //register deliveryboy
 
+const admin = require("firebase-admin");
+const db = admin.firestore();
+
 exports.registerDeliveryBoy = async (req, res) => {
     try {
         const { name, age, adhaar, drivingLicence, phoneNumber } = req.body;
@@ -395,6 +398,11 @@ exports.registerDeliveryBoy = async (req, res) => {
         // ✅ Validate request data
         if (!name || !age || !adhaar || !drivingLicence || !phoneNumber) {
             return res.status(400).json({ message: "All fields are required." });
+        }
+
+        // ✅ Check if age is greater than or equal to 18
+        if (age < 18) {
+            return res.status(400).json({ message: "Age must be 18 or above to register." });
         }
 
         console.log(`📦 New Delivery Boy Registration: ${name}, Phone: ${phoneNumber}`);
@@ -429,4 +437,5 @@ exports.registerDeliveryBoy = async (req, res) => {
         res.status(500).json({ error: "Internal server error", details: error.message });
     }
 };
+
 
