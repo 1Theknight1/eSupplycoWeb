@@ -173,9 +173,17 @@ exports.calcDiscount = async (req, res) => {
       const subsidizedPrice = productData.subsidizedPrice || 0; // Subsidized price
       const marketPrice = productData.marketPrice || 0; // Market price
 
+      // 🔹 Check stock in Realtime Database (RTDB)
+      const stockSnapshot = await rtdb.ref(`stock_updates/${supplycoId}/${productId}`).get();
+      const stock = stockSnapshot.exists() ? stockSnapshot.val() : 0;
+
+      if (stock === 0) {
+        return res.status(400).json({ message: `Product ${productId} is out of stock.` });
+      }
+
       // Find quota details for the product
       const quotaProduct = quotaProducts.find((p) => p.name === productId);
-      
+
       let subsidizedQuantity = 0;
       let excessQuantity = quantity;
       let subsidizedTotal = 0;
@@ -184,10 +192,10 @@ exports.calcDiscount = async (req, res) => {
       if (quotaProduct) {
         const quotaLimit = quotaProduct.quota[rationType] || 0; // Quota limit for the user's ration type
         const remainingQuotaForProduct = quotaLimit - (usedQuota[productId] || 0);
-        
+
         subsidizedQuantity = Math.min(quantity, remainingQuotaForProduct);
         excessQuantity = Math.max(quantity - remainingQuotaForProduct, 0);
-        
+
         // Calculate prices
         subsidizedTotal = subsidizedQuantity * subsidizedPrice;
         marketTotal = excessQuantity * marketPrice;
@@ -208,6 +216,7 @@ exports.calcDiscount = async (req, res) => {
         unit,
         productId,
         quantity,
+        stock,
         subsidizedQuantity,
         excessQuantity,
         subsidizedPrice,
@@ -234,6 +243,7 @@ exports.calcDiscount = async (req, res) => {
     res.status(500).json({ error: "Internal server error", details: error.message });
   }
 };
+
 
 
 
