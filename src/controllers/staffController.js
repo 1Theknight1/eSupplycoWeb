@@ -561,7 +561,7 @@ exports.updateDeliveryRequestStatus = async (req, res) => {
 
           // ✅ Send Email with Credentials
           const mailOptions = {
-              from: "your-email@gmail.com", // 🔹 Replace with your email
+              from: "esupplyco3@gmail.com", // 🔹 Replace with your email
               to: requestData.email,
               subject: "eSupplyco - Delivery Boy Registration Approved",
               text: `Hello ${requestData.name},\n\nYour registration as a delivery boy has been approved.\n\nYour login credentials:\nUsername: ${requestData.email}\nPassword: ${generatedPassword}\n\nPlease change your password after logging in.\n\nBest Regards,\neSupplyco Team`,
