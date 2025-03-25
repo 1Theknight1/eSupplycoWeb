@@ -401,10 +401,10 @@ exports.updateStock= async (req, res) => {
 
 exports.registerDeliveryBoy = async (req, res) => {
   try {
-      const { name, age, adhaar, drivingLicence, phoneNumber, supplycoId } = req.body;
+      const { name, age, adhaar, drivingLicence, phoneNumber, supplycoId ,email} = req.body;
 
       // ✅ Validate request data
-      if (!name || !age || !adhaar || !drivingLicence || !phoneNumber || !supplycoId) {
+      if (!name || !age || !adhaar || !drivingLicence || !phoneNumber || !supplycoId ||!email) {
           return res.status(400).json({ message: "All fields are required." });
       }
 
@@ -429,6 +429,7 @@ exports.registerDeliveryBoy = async (req, res) => {
           name,
           age,
           adhaar,
+          email,
           drivingLicence,
           phoneNumber,
           supplycoId, // Added Supplyco ID
@@ -492,10 +493,10 @@ exports.getDeliveryRequestsBySupplyco = async (req, res) => {
 exports.updateDeliveryRequestStatus = async (req, res) => {
     try {
         const { requestId } = req.params;
-        const { status, staffId } = req.body;
+        const { status, supplycoId } = req.body;
 
         // ✅ Validate required fields
-        if (!requestId || !status || !staffId) {
+        if (!requestId || !status || !supplycoId) {
             return res.status(400).json({ message: "Request ID, status, and staff ID are required." });
         }
 
@@ -504,7 +505,7 @@ exports.updateDeliveryRequestStatus = async (req, res) => {
             return res.status(400).json({ message: "Invalid status. Allowed values: 'Approved', 'Rejected'." });
         }
 
-        console.log(`📦 Updating delivery request ${requestId} to ${status} by Staff: ${staffId}`);
+        console.log(`📦 Updating delivery request ${requestId} to ${status} by Staff: ${supplycoId}`);
 
         // ✅ Find the delivery request in Firestore
         const requestRef = db.collection("deliveryReq").doc(requestId);
@@ -568,7 +569,7 @@ exports.updateDeliveryRequestStatus = async (req, res) => {
             // ✅ If rejected, just update the status
             await requestRef.update({
                 status: "Rejected",
-                reviewedBy: staffId,
+                reviewedBy: supplycoId,
                 reviewedAt: admin.firestore.FieldValue.serverTimestamp()
             });
 
