@@ -438,4 +438,37 @@ exports.registerDeliveryBoy = async (req, res) => {
     }
 };
 
+//get all delivery reg requests
+
+
+exports.getPendingDeliveryRequests = async (req, res) => {
+    try {
+        console.log("📦 Fetching all pending delivery requests...");
+
+        // ✅ Query Firestore for documents with status "Pending"
+        const querySnapshot = await db.collection("deliveryReq")
+            .where("status", "==", "Pending")
+            .get();
+
+        // ✅ If no pending requests found
+        if (querySnapshot.empty) {
+            return res.status(404).json({ message: "No pending delivery requests found." });
+        }
+
+        // ✅ Extract data from Firestore documents
+        const pendingRequests = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        console.log(`✅ Found ${pendingRequests.length} pending delivery requests.`);
+        res.status(200).json({ pendingRequests });
+
+    } catch (error) {
+        console.error("❌ Error fetching pending delivery requests:", error);
+        res.status(500).json({ error: "Internal server error", details: error.message });
+    }
+};
+
+
 
