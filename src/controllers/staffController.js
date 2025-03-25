@@ -385,3 +385,48 @@ exports.updateStock= async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+//register deliveryboy
+
+exports.registerDeliveryBoy = async (req, res) => {
+    try {
+        const { name, age, adhaar, drivingLicence, phoneNumber } = req.body;
+
+        // ✅ Validate request data
+        if (!name || !age || !adhaar || !drivingLicence || !phoneNumber) {
+            return res.status(400).json({ message: "All fields are required." });
+        }
+
+        console.log(`📦 New Delivery Boy Registration: ${name}, Phone: ${phoneNumber}`);
+
+        // ✅ Check if the delivery boy is already registered
+        const existingQuery = await db.collection("deliveryReq")
+            .where("phoneNumber", "==", phoneNumber)
+            .get();
+
+        if (!existingQuery.empty) {
+            return res.status(400).json({ message: "Phone number already registered." });
+        }
+
+        // ✅ Store in Firestore (deliveryReq collection)
+        const newDeliveryBoy = {
+            name,
+            age,
+            adhaar,
+            drivingLicence,
+            phoneNumber,
+            status: "Pending", // Default status: Pending approval
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        const docRef = await db.collection("deliveryReq").add(newDeliveryBoy);
+
+        console.log(`✅ Delivery Boy Registered: ${docRef.id}`);
+        res.status(201).json({ message: "Registration successful!", deliveryBoyId: docRef.id });
+
+    } catch (error) {
+        console.error("❌ Error registering delivery boy:", error);
+        res.status(500).json({ error: "Internal server error", details: error.message });
+    }
+};
+
