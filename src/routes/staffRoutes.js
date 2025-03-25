@@ -14,6 +14,6 @@ router.post("/getSlotByCardNumber",getSlotByCardNumber)
 router.post("/check-order",checkPickup)
 router.post("/update-stock",updateStock)
 router.post("/registerDeliveryBoy",registerDeliveryBoy)
-router.get("/delivery/request/:supplycoId",get)
+router.get("/delivery/request/:supplycoId",getDeliveryRequestsBySupplyco)
 
 module.exports=router
