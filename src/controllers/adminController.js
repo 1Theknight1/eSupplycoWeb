@@ -25,8 +25,7 @@ exports.productsAdd = async (req, res) => {
       category,
       unit,
       price,
-      discounts,
-      quota,
+      
       expiryDate,
       image,
       stock,
