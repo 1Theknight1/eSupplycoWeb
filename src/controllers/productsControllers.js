@@ -146,11 +146,7 @@ exports.calcDiscount = async (req, res) => {
     // Fetch quota details for the current month
     const currentMonthYear = new Date().toLocaleString("default", { month: "long", year: "numeric" });
     const quotaDoc = await db.collection("monthlyQuotas").doc(currentMonthYear).get();
-    if (!quotaDoc.exists) {
-      return res.status(400).json({ message: "Quota details not found for the current month." });
-    }
-
-    const quotaData = quotaDoc.data();
+    const quotaData = quotaDoc.exists ? quotaDoc.data() : { products: [] };
     const quotaProducts = quotaData.products; // List of products with quota limits
 
     let totalFinalPrice = 0;
@@ -179,23 +175,30 @@ exports.calcDiscount = async (req, res) => {
 
       // Find quota details for the product
       const quotaProduct = quotaProducts.find((p) => p.name === productId);
-      if (!quotaProduct) {
-        return res.status(400).json({ message: `Quota details not found for product ${productId}.` });
+      
+      let subsidizedQuantity = 0;
+      let excessQuantity = quantity;
+      let subsidizedTotal = 0;
+      let marketTotal = quantity * marketPrice; // Default to market price if no quota
+
+      if (quotaProduct) {
+        const quotaLimit = quotaProduct.quota[rationType] || 0; // Quota limit for the user's ration type
+        const remainingQuotaForProduct = quotaLimit - (usedQuota[productId] || 0);
+        
+        subsidizedQuantity = Math.min(quantity, remainingQuotaForProduct);
+        excessQuantity = Math.max(quantity - remainingQuotaForProduct, 0);
+        
+        // Calculate prices
+        subsidizedTotal = subsidizedQuantity * subsidizedPrice;
+        marketTotal = excessQuantity * marketPrice;
       }
 
-      const quotaLimit = quotaProduct.quota[rationType] || 0; // Quota limit for the user's ration type
-      const remainingQuotaForProduct = quotaLimit - (usedQuota[productId] || 0);
-
-      let subsidizedQuantity = Math.min(quantity, remainingQuotaForProduct);
-      let excessQuantity = Math.max(quantity - remainingQuotaForProduct, 0);
-
-      // Calculate prices
-      const subsidizedTotal = subsidizedQuantity * subsidizedPrice;
-      const marketTotal = excessQuantity * marketPrice;
       const totalPrice = subsidizedTotal + marketTotal;
 
       // Update remaining quota (for response only, not saved to DB yet)
-      remainingQuota[productId] = remainingQuotaForProduct - subsidizedQuantity;
+      remainingQuota[productId] = quotaProduct
+        ? Math.max(0, (quotaProduct.quota[rationType] || 0) - (usedQuota[productId] || 0) - subsidizedQuantity)
+        : 0; // If no quota exists, set to 0
 
       // Update totals
       totalFinalPrice += totalPrice;
@@ -231,6 +234,7 @@ exports.calcDiscount = async (req, res) => {
     res.status(500).json({ error: "Internal server error", details: error.message });
   }
 };
+
 
 
 //getBill
