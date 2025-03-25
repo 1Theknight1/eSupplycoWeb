@@ -15,6 +15,6 @@ router.post("/check-order",checkPickup)
 router.post("/update-stock",updateStock)
 router.post("/registerDeliveryBoy",registerDeliveryBoy)
 router.get("/delivery/request/:supplycoId",getDeliveryRequestsBySupplyco)
-router.get("/delivery/request/status/:requestId",updateDeliveryRequestStatus)
+router.patch("/delivery/request/status/:requestId",updateDeliveryRequestStatus)
 
 module.exports=router
