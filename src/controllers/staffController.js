@@ -390,83 +390,88 @@ exports.updateStock= async (req, res) => {
 
 
 exports.registerDeliveryBoy = async (req, res) => {
-    try {
-        const { name, age, adhaar, drivingLicence, phoneNumber } = req.body;
+  try {
+      const { name, age, adhaar, drivingLicence, phoneNumber, supplycoId } = req.body;
 
-        // ✅ Validate request data
-        if (!name || !age || !adhaar || !drivingLicence || !phoneNumber) {
-            return res.status(400).json({ message: "All fields are required." });
-        }
+      // ✅ Validate request data
+      if (!name || !age || !adhaar || !drivingLicence || !phoneNumber || !supplycoId) {
+          return res.status(400).json({ message: "All fields are required." });
+      }
 
-        // ✅ Check if age is greater than or equal to 18
-        if (age < 18) {
-            return res.status(400).json({ message: "Age must be 18 or above to register." });
-        }
+      // ✅ Check if age is greater than or equal to 18
+      if (age < 18) {
+          return res.status(400).json({ message: "Age must be 18 or above to register." });
+      }
 
-        console.log(`📦 New Delivery Boy Registration: ${name}, Phone: ${phoneNumber}`);
+      console.log(`📦 New Delivery Boy Registration: ${name}, Phone: ${phoneNumber}, Supplyco: ${supplycoId}`);
 
-        // ✅ Check if the delivery boy is already registered
-        const existingQuery = await db.collection("deliveryReq")
-            .where("phoneNumber", "==", phoneNumber)
-            .get();
+      // ✅ Check if the delivery boy is already registered
+      const existingQuery = await db.collection("deliveryReq")
+          .where("phoneNumber", "==", phoneNumber)
+          .get();
 
-        if (!existingQuery.empty) {
-            return res.status(400).json({ message: "Phone number already registered." });
-        }
+      if (!existingQuery.empty) {
+          return res.status(400).json({ message: "Phone number already registered." });
+      }
 
-        // ✅ Store in Firestore (deliveryReq collection)
-        const newDeliveryBoy = {
-            name,
-            age,
-            adhaar,
-            drivingLicence,
-            phoneNumber,
-            status: "Pending", // Default status: Pending approval
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        };
+      // ✅ Store in Firestore (deliveryReq collection)
+      const newDeliveryBoy = {
+          name,
+          age,
+          adhaar,
+          drivingLicence,
+          phoneNumber,
+          supplycoId, // Added Supplyco ID
+          status: "Pending", // Default status: Pending approval
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      };
 
-        const docRef = await db.collection("deliveryReq").add(newDeliveryBoy);
+      const docRef = await db.collection("deliveryReq").add(newDeliveryBoy);
 
-        console.log(`✅ Delivery Boy Registered: ${docRef.id}`);
-        res.status(201).json({ message: "Registration successful!", deliveryBoyId: docRef.id });
+      console.log(`✅ Delivery Boy Registered: ${docRef.id}`);
+      res.status(201).json({ message: "Registration successful!", deliveryBoyId: docRef.id });
 
-    } catch (error) {
-        console.error("❌ Error registering delivery boy:", error);
-        res.status(500).json({ error: "Internal server error", details: error.message });
-    }
+  } catch (error) {
+      console.error("❌ Error registering delivery boy:", error);
+      res.status(500).json({ error: "Internal server error", details: error.message });
+  }
 };
+
 
 //get all delivery reg requests
 
 
-exports.getPendingDeliveryRequests = async (req, res) => {
-    try {
-        console.log("📦 Fetching all pending delivery requests...");
+exports.getDeliveryRequestsBySupplyco = async (req, res) => {
+  try {
+      const { supplycoId } = req.params;
 
-        // ✅ Query Firestore for documents with status "Pending"
-        const querySnapshot = await db.collection("deliveryReq")
-            .where("status", "==", "Pending")
-            .get();
+      // ✅ Validate supplycoId
+      if (!supplycoId) {
+          return res.status(400).json({ message: "Supplyco ID is required." });
+      }
 
-        // ✅ If no pending requests found
-        if (querySnapshot.empty) {
-            return res.status(404).json({ message: "No pending delivery requests found." });
-        }
+      console.log(`📦 Fetching delivery requests for Supplyco: ${supplycoId}`);
 
-        // ✅ Extract data from Firestore documents
-        const pendingRequests = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
+      // ✅ Fetch delivery requests from Firestore where supplycoId matches
+      const querySnapshot = await db.collection("deliveryReq")
+          .where("supplycoId", "==", supplycoId)
+          .get();
 
-        console.log(`✅ Found ${pendingRequests.length} pending delivery requests.`);
-        res.status(200).json({ pendingRequests });
+      if (querySnapshot.empty) {
+          return res.status(404).json({ message: "No delivery requests found for this Supplyco." });
+      }
 
-    } catch (error) {
-        console.error("❌ Error fetching pending delivery requests:", error);
-        res.status(500).json({ error: "Internal server error", details: error.message });
-    }
+      // ✅ Convert Firestore documents to an array
+      const deliveryRequests = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+      }));
+
+      console.log(`✅ Found ${deliveryRequests.length} delivery requests.`);
+      res.status(200).json({ deliveryRequests });
+
+  } catch (error) {
+      console.error("❌ Error fetching delivery requests:", error);
+      res.status(500).json({ error: "Internal server error", details: error.message });
+  }
 };
-
-
-
