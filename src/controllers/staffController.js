@@ -5,6 +5,9 @@ const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
 const {db,rtdb}=require("../utils/firebase-config")
 const admin=require("firebase-admin")
+
+const bcrypt = require("bcryptjs");
+const nodemailer = require("nodemailer");
 // const upload = multer({ dest: "uploads/" });
 // const storage = multer.memoryStorage(); // Store files in memory before uploading to Firebase
 const bucket = admin.storage().bucket();
@@ -17,6 +20,13 @@ async function logApiCall(action) {
   });
   console.log("saved staff log");
 }
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+      user: "esupplyco3@gmail.com", // 🔹 Replace with your email
+      pass: "pmyqbvvfkcxoqlrj",  // 🔹 Replace with your email password or app password
+  },
+});
 
 //get orders of supplyco
 exports.getSupplycoOrders= async (req, res) => {
@@ -474,4 +484,100 @@ exports.getDeliveryRequestsBySupplyco = async (req, res) => {
       console.error("❌ Error fetching delivery requests:", error);
       res.status(500).json({ error: "Internal server error", details: error.message });
   }
+};
+
+// delivery boy status change
+
+
+exports.updateDeliveryRequestStatus = async (req, res) => {
+    try {
+        const { requestId } = req.params;
+        const { status, staffId } = req.body;
+
+        // ✅ Validate required fields
+        if (!requestId || !status || !staffId) {
+            return res.status(400).json({ message: "Request ID, status, and staff ID are required." });
+        }
+
+        // ✅ Check if status is valid
+        if (!["Approved", "Rejected"].includes(status)) {
+            return res.status(400).json({ message: "Invalid status. Allowed values: 'Approved', 'Rejected'." });
+        }
+
+        console.log(`📦 Updating delivery request ${requestId} to ${status} by Staff: ${staffId}`);
+
+        // ✅ Find the delivery request in Firestore
+        const requestRef = db.collection("deliveryReq").doc(requestId);
+        const requestDoc = await requestRef.get();
+
+        if (!requestDoc.exists) {
+            return res.status(404).json({ message: "Delivery request not found." });
+        }
+
+        const requestData = requestDoc.data();
+
+        if (status === "Approved") {
+            // ✅ Generate a new delivery boy ID (delivery_001, delivery_002, ...)
+            const deliveryBoyRef = db.collection("deliveryBoy");
+            const deliveryBoyDocs = await deliveryBoyRef.get();
+            const newDeliveryId = `delivery_${String(deliveryBoyDocs.size + 1).padStart(3, "0")}`;
+
+            // ✅ Generate a random password
+            const generatedPassword = Math.random().toString(36).slice(-8);
+            const hashedPassword = await bcrypt.hash(generatedPassword, 10);
+
+            // ✅ Move data to `deliveryBoy` collection
+            const newDeliveryBoy = {
+                deliveryId: newDeliveryId,
+                name: requestData.name,
+                age: requestData.age,
+                adhaar: requestData.adhaar,
+                drivingLicence: requestData.drivingLicence,
+                phoneNumber: requestData.phoneNumber,
+                supplycoId: requestData.supplycoId,
+                email: requestData.email, // Email must be in delivery request
+                password: hashedPassword, // Store hashed password
+                status: "Active",
+                registeredAt: admin.firestore.FieldValue.serverTimestamp(),
+            };
+
+            await deliveryBoyRef.doc(newDeliveryId).set(newDeliveryBoy);
+
+            console.log(`✅ Delivery Boy Registered: ${newDeliveryId}`);
+
+            // ✅ Send Email with Credentials
+            const mailOptions = {
+                from: "your-email@gmail.com", // 🔹 Replace with your email
+                to: requestData.email,
+                subject: "eSupplyco - Delivery Boy Registration Approved",
+                text: `Hello ${requestData.name},\n\nYour registration as a delivery boy has been approved.\n\nYour login credentials:\nUsername: ${requestData.email}\nPassword: ${generatedPassword}\n\nPlease change your password after logging in.\n\nBest Regards,\neSupplyco Team`,
+            };
+
+            await transporter.sendMail(mailOptions);
+            console.log(`📧 Email sent to ${requestData.email}`);
+
+            // ✅ Remove from `deliveryReq` (optional)
+            await requestRef.delete();
+
+            return res.status(200).json({ 
+                message: "Delivery request approved and email sent.", 
+                deliveryBoyId: newDeliveryId 
+            });
+
+        } else {
+            // ✅ If rejected, just update the status
+            await requestRef.update({
+                status: "Rejected",
+                reviewedBy: staffId,
+                reviewedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            console.log(`❌ Delivery request ${requestId} rejected.`);
+            return res.status(200).json({ message: "Delivery request rejected." });
+        }
+
+    } catch (error) {
+        console.error("❌ Error updating delivery request status:", error);
+        res.status(500).json({ error: "Internal server error", details: error.message });
+    }
 };
