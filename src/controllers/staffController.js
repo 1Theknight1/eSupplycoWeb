@@ -41,12 +41,32 @@ exports.getSupplycoOrders= async (req, res) => {
   };
 
   //get deliveryorders
-  exports.getDeliveryBySupplyco= async (req, res) => {
+  exports.getDeliveryBySupplyco = async (req, res) => {
     try {
       const { supplycoId } = req.params;
+  
+      // Fetch orders from the Delivery collection
       const snapshot = await db.collection("Delivery").where("supplycoId", "==", supplycoId).get();
       const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      res.status(200).json(orders);
+  
+      // Fetch user details (phone number & address) in parallel
+      const userPromises = orders.map(async (order) => {
+        const userRef = db.collection("users").doc(order.cardNumber);
+        const userSnap = await userRef.get();
+        if (userSnap.exists) {
+          const userData = userSnap.data();
+          return {
+            ...order,
+            phoneNumber: userData.phoneNumber || null,
+            address: userData.address || null,
+          };
+        }
+        return { ...order, phoneNumber: null, address: null };
+      });
+  
+      const ordersWithUserDetails = await Promise.all(userPromises);
+  
+      res.status(200).json(ordersWithUserDetails);
     } catch (error) {
       res.status(500).json({ error: "Error fetching delivery orders", details: error.message });
     }
