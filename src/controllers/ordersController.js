@@ -479,43 +479,58 @@ exports.changeOrderStatue= async (req, res) => {
   //sent to delivery app
   exports.assignDelivery = async (req, res) => {
     try {
-      const { supplycoId, orderId } = req.body;
-  
-      // Validate the request
-      if (!orderId || !supplycoId) {
-        return res.status(400).json({ message: "Order ID and Supplyco ID are required." });
-      }
-  
-      // Firestore transaction for atomic operations
-      await db.runTransaction(async (transaction) => {
-        const orderRef = db.collection("orders").doc(orderId);
-        const deliveryRef = db.collection("Delivery").doc(orderId);
-  
-        const orderDoc = await transaction.get(orderRef);
-        if (!orderDoc.exists) {
-          throw new Error("Order not found.");
+        console.log("🚀 Received API Request: /api/orders/assignDelivery");
+        console.log("📦 Request Body:", req.body);
+
+        const { supplycoId, orderId } = req.body;
+
+        // Validate the request
+        if (!orderId || !supplycoId) {
+            console.error("⚠️ Validation Error: Missing orderId or supplycoId.");
+            return res.status(400).json({ message: "Order ID and Supplyco ID are required." });
         }
-  
-        const deliveryDoc = await transaction.get(deliveryRef);
-        if (deliveryDoc.exists) {
-          throw new Error("Order is already in the Delivery collection.");
-        }
-  
-        // Copy order data to Delivery collection
-        transaction.set(deliveryRef, orderDoc.data());
-        // Update order status
-        transaction.update(orderRef, { status: "assigning" });
-      });
-  
-      // Log the API call
-      await logApiCall(`Order:${orderId} assigned to Delivery App at ${supplycoId}`);
-  
-      // Respond with success
-      res.status(200).json({ message: "Order assigned for delivery successfully.", orderId });
-  
+
+        console.log(`🔍 Checking Firestore for Order ID: ${orderId} and Supplyco ID: ${supplycoId}`);
+
+        // Firestore transaction for atomic operations
+        await db.runTransaction(async (transaction) => {
+            const orderRef = db.collection("orders").doc(orderId);
+            const deliveryRef = db.collection("Delivery").doc(orderId);
+
+            const orderDoc = await transaction.get(orderRef);
+            if (!orderDoc.exists) {
+                console.error(`❌ Order Not Found: ${orderId}`);
+                throw new Error("Order not found.");
+            }
+
+            const deliveryDoc = await transaction.get(deliveryRef);
+            if (deliveryDoc.exists) {
+                console.error(`⚠️ Order Already Assigned for Delivery: ${orderId}`);
+                throw new Error("Order is already in the Delivery collection.");
+            }
+
+            console.log(`✅ Order ${orderId} found. Proceeding with assignment...`);
+
+            // Copy order data to Delivery collection
+            transaction.set(deliveryRef, orderDoc.data());
+
+            // Update order status
+            transaction.update(orderRef, { status: "assigning" });
+
+            console.log(`🚚 Order ${orderId} assigned to delivery at Supplyco ${supplycoId}`);
+        });
+
+        // Log the API call
+        await logApiCall(`📜 Order:${orderId} assigned to Delivery App at ${supplycoId}`);
+
+        // Respond with success
+        console.log(`✅ API Success: Order ${orderId} successfully assigned for delivery.`);
+        res.status(200).json({ message: "Order assigned for delivery successfully.", orderId });
+
     } catch (error) {
-      console.error("❌ Error assigning order for delivery:", error);
-      res.status(500).json({ message: error.message || "Internal server error." });
+        console.error("❌ Error assigning order for delivery:", error.message);
+        res.status(500).json({ message: error.message || "Internal server error." });
     }
-  };
+};
+
   
