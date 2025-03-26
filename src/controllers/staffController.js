@@ -40,6 +40,17 @@ exports.getSupplycoOrders= async (req, res) => {
     }
   };
 
+  //get deliveryorders
+  exports.getDeliveryBySupplyco= async (req, res) => {
+    try {
+      const { supplycoId } = req.params;
+      const snapshot = await db.collection("Delivery").where("supplycoId", "==", supplycoId).get();
+      const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      res.status(200).json(orders);
+    } catch (error) {
+      res.status(500).json({ error: "Error fetching delivery orders", details: error.message });
+    }
+  };
 
   //staff regsiter
 
