@@ -92,43 +92,35 @@ exports.getSlotsForDate = async (req, res) => {
             let slotId = doc.id;
             let bookedCount = bookings[slotId]?.booked_count || 0;
             let capacity = slotData.capacity;
+
+            let startTimeString = slotData.start_time;
             let endTimeString = slotData.end_time;
-            let endTime = null;
+            
+            let startTime = convertTo12HourFormat(startTimeString);
+            let endTime = convertTo12HourFormat(endTimeString);
             let status = "active";
 
-            // 🔹 Convert `end_time` from stored string to Date object
+            let endTimeDate = null;
             if (endTimeString && typeof endTimeString === "string") {
-                try {
-                    let [hours, minutes] = endTimeString.split(":").map(Number);
-                    let slotDate = new Date(date);
-                    endTime = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate(), hours, minutes);
-                } catch (error) {
-                    console.error("Invalid time format:", endTimeString);
+                const [hours, minutes] = endTimeString.split(":").map(Number);
+                if (!isNaN(hours) && !isNaN(minutes)) {
+                    const slotDate = new Date(date);
+                    endTimeDate = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate(), hours, minutes);
                 }
             }
 
-            // 🔹 Determine slot status
-            if (endTime instanceof Date && !isNaN(endTime)) {
-                if (date === todayDateString && endTime < currentTime) {
+            if (endTimeDate instanceof Date && !isNaN(endTimeDate)) {
+                if (date === todayDateString && endTimeDate < currentTime) {
                     status = "expired";
                 } else if (bookedCount >= capacity) {
                     status = "full";
                 }
             }
 
-            // 🔥 Convert `start_time` & `end_time` to 12-hour AM/PM format
-            const formatTo12Hour = (timeString) => {
-                if (!timeString) return "N/A";
-                let [h, m] = timeString.split(":").map(Number);
-                let ampm = h >= 12 ? "PM" : "AM";
-                h = h % 12 || 12; // Convert "0" or "12" to "12"
-                return `${h}:${m.toString().padStart(2, "0")} ${ampm}`;
-            };
-
             slots.push({
                 id: slotId,
-                start_time: formatTo12Hour(slotData.start_time),
-                end_time: formatTo12Hour(endTimeString),
+                start_time: startTime,
+                end_time: endTime,
                 capacity,
                 booked_count: bookedCount,
                 status,
@@ -141,5 +133,18 @@ exports.getSlotsForDate = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
+
+// 🔹 Function to convert 24-hour time to 12-hour AM/PM format
+const convertTo12HourFormat = (timeString) => {
+    if (!timeString || typeof timeString !== "string") return "Invalid Time";
+
+    const [hours, minutes] = timeString.split(":").map(Number);
+    if (isNaN(hours) || isNaN(minutes)) return "Invalid Time";
+
+    const period = hours >= 12 ? "PM" : "AM";
+    const hour12 = hours % 12 || 12; // Convert 0 to 12
+    return `${hour12}:${minutes.toString().padStart(2, "0")} ${period}`;
+};
+
 
 
