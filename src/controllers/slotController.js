@@ -84,8 +84,8 @@ exports.getSlotsForDate = async (req, res) => {
 
         let slots = [];
         let bookings = bookingsSnapshot.exists ? bookingsSnapshot.data() : {};
-        const currentTime = new Date(); // 🔥 Get the current system time
-        const todayDateString = currentTime.toISOString().split("T")[0]; // 🔹 Format "YYYY-MM-DD"
+        const currentTime = new Date(); // Get current time in UTC
+        const todayDateString = currentTime.toISOString().split("T")[0]; // Format "YYYY-MM-DD"
 
         slotsSnapshot.forEach((doc) => {
             let slotData = doc.data();
@@ -96,7 +96,7 @@ exports.getSlotsForDate = async (req, res) => {
             let endTime = null;
             let status = "active"; // Default status
 
-            // 🔍 Convert string `end_time` to a Date object
+            // Convert `end_time` string to a Date object
             if (endTimeString && typeof endTimeString === "string") {
                 try {
                     const [hours, minutes] = endTimeString.split(":").map(Number);
@@ -107,11 +107,13 @@ exports.getSlotsForDate = async (req, res) => {
                 }
             }
 
-            // 🔹 Determine slot status
-            if (date === todayDateString && endTime && endTime < currentTime) {
-                status = "expired"; // ✅ Expired if today & end_time passed
-            } else if (bookedCount >= capacity) {
-                status = "full"; // ✅ Mark as "full" if fully booked
+            // Determine slot status
+            if (endTime instanceof Date && !isNaN(endTime)) {
+                if (date === todayDateString && endTime < currentTime) {
+                    status = "expired"; // ✅ Mark as expired if today & end_time passed
+                } else if (bookedCount >= capacity) {
+                    status = "full"; // ✅ Mark as full if fully booked
+                }
             }
 
             slots.push({
@@ -130,5 +132,3 @@ exports.getSlotsForDate = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
-
-
