@@ -84,8 +84,10 @@ exports.getSlotsForDate = async (req, res) => {
 
         let slots = [];
         let bookings = bookingsSnapshot.exists ? bookingsSnapshot.data() : {};
-        const currentTime = new Date(); // Get current time in UTC
-        const todayDateString = currentTime.toISOString().split("T")[0]; // Format "YYYY-MM-DD"
+        const currentTime = new Date(); // Get current time
+        const todayDateString = currentTime.toISOString().split("T")[0]; // "YYYY-MM-DD"
+
+        console.log("Current Time:", currentTime.toISOString()); // 🔍 Debug log
 
         slotsSnapshot.forEach((doc) => {
             let slotData = doc.data();
@@ -96,23 +98,25 @@ exports.getSlotsForDate = async (req, res) => {
             let endTime = null;
             let status = "active"; // Default status
 
-            // Convert `end_time` string to a Date object
+            // 🔍 Convert `end_time` to a Date object
             if (endTimeString && typeof endTimeString === "string") {
                 try {
                     const [hours, minutes] = endTimeString.split(":").map(Number);
                     const slotDate = new Date(date); // Convert `date` param to Date object
                     endTime = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate(), hours, minutes);
+
+                    console.log(`Slot ${slotId} - End Time:`, endTime.toISOString()); // 🔍 Debug log
                 } catch (error) {
                     console.error("Invalid time format:", endTimeString);
                 }
             }
 
-            // Determine slot status
+            // 🔹 Determine slot status
             if (endTime instanceof Date && !isNaN(endTime)) {
                 if (date === todayDateString && endTime < currentTime) {
-                    status = "expired"; // ✅ Mark as expired if today & end_time passed
+                    status = "expired"; // ✅ Expired if today & end_time passed
                 } else if (bookedCount >= capacity) {
-                    status = "full"; // ✅ Mark as full if fully booked
+                    status = "full"; // ✅ Mark as "full" if fully booked
                 }
             }
 
@@ -132,3 +136,4 @@ exports.getSlotsForDate = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
+
