@@ -84,28 +84,24 @@ exports.getSlotsForDate = async (req, res) => {
 
         let slots = [];
         let bookings = bookingsSnapshot.exists ? bookingsSnapshot.data() : {};
-        const currentTime = new Date(); // Get current time
-        const todayDateString = currentTime.toISOString().split("T")[0]; // "YYYY-MM-DD"
-
-        console.log("Current Time:", currentTime.toISOString()); // 🔍 Debug log
+        const currentTime = new Date();
+        const todayDateString = currentTime.toISOString().split("T")[0];
 
         slotsSnapshot.forEach((doc) => {
             let slotData = doc.data();
             let slotId = doc.id;
             let bookedCount = bookings[slotId]?.booked_count || 0;
             let capacity = slotData.capacity;
-            let endTimeString = slotData.end_time; // `end_time` stored as STRING in Firestore
+            let endTimeString = slotData.end_time;
             let endTime = null;
-            let status = "active"; // Default status
+            let status = "active";
 
-            // 🔍 Convert `end_time` to a Date object
+            // 🔹 Convert `end_time` from stored string to Date object
             if (endTimeString && typeof endTimeString === "string") {
                 try {
-                    const [hours, minutes] = endTimeString.split(":").map(Number);
-                    const slotDate = new Date(date); // Convert `date` param to Date object
+                    let [hours, minutes] = endTimeString.split(":").map(Number);
+                    let slotDate = new Date(date);
                     endTime = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate(), hours, minutes);
-
-                    console.log(`Slot ${slotId} - End Time:`, endTime.toISOString()); // 🔍 Debug log
                 } catch (error) {
                     console.error("Invalid time format:", endTimeString);
                 }
@@ -114,19 +110,28 @@ exports.getSlotsForDate = async (req, res) => {
             // 🔹 Determine slot status
             if (endTime instanceof Date && !isNaN(endTime)) {
                 if (date === todayDateString && endTime < currentTime) {
-                    status = "expired"; // ✅ Expired if today & end_time passed
+                    status = "expired";
                 } else if (bookedCount >= capacity) {
-                    status = "full"; // ✅ Mark as "full" if fully booked
+                    status = "full";
                 }
             }
 
+            // 🔥 Convert `start_time` & `end_time` to 12-hour AM/PM format
+            const formatTo12Hour = (timeString) => {
+                if (!timeString) return "N/A";
+                let [h, m] = timeString.split(":").map(Number);
+                let ampm = h >= 12 ? "PM" : "AM";
+                h = h % 12 || 12; // Convert "0" or "12" to "12"
+                return `${h}:${m.toString().padStart(2, "0")} ${ampm}`;
+            };
+
             slots.push({
                 id: slotId,
-                start_time: slotData.start_time,
-                end_time: endTimeString || "N/A", // Avoid null values
+                start_time: formatTo12Hour(slotData.start_time),
+                end_time: formatTo12Hour(endTimeString),
                 capacity,
                 booked_count: bookedCount,
-                status, // ✅ Properly determined slot status
+                status,
             });
         });
 
@@ -136,4 +141,5 @@ exports.getSlotsForDate = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
+
 
