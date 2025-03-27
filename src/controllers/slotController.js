@@ -84,46 +84,43 @@ exports.getSlotsForDate = async (req, res) => {
 
         let slots = [];
         let bookings = bookingsSnapshot.exists ? bookingsSnapshot.data() : {};
-        const currentTime = new Date();
-        const todayDateString = currentTime.toISOString().split("T")[0];
+        const currentTime = new Date(); // 🔥 Get the current system time
+        const todayDateString = currentTime.toISOString().split("T")[0]; // 🔹 Format "YYYY-MM-DD"
 
         slotsSnapshot.forEach((doc) => {
             let slotData = doc.data();
             let slotId = doc.id;
             let bookedCount = bookings[slotId]?.booked_count || 0;
             let capacity = slotData.capacity;
+            let endTimeString = slotData.end_time; // `end_time` stored as STRING in Firestore
+            let endTime = null;
+            let status = "active"; // Default status
 
-            let startTimeString = slotData.start_time;
-            let endTimeString = slotData.end_time;
-            
-            let startTime = convertTo12HourFormat(startTimeString);
-            let endTime = convertTo12HourFormat(endTimeString);
-            let status = "active";
-
-            let endTimeDate = null;
+            // 🔍 Convert string `end_time` to a Date object
             if (endTimeString && typeof endTimeString === "string") {
-                const [hours, minutes] = endTimeString.split(":").map(Number);
-                if (!isNaN(hours) && !isNaN(minutes)) {
-                    const slotDate = new Date(date);
-                    endTimeDate = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate(), hours, minutes);
+                try {
+                    const [hours, minutes] = endTimeString.split(":").map(Number);
+                    const slotDate = new Date(date); // Convert `date` param to Date object
+                    endTime = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate(), hours, minutes);
+                } catch (error) {
+                    console.error("Invalid time format:", endTimeString);
                 }
             }
 
-            if (endTimeDate instanceof Date && !isNaN(endTimeDate)) {
-                if (date === todayDateString && endTimeDate < currentTime) {
-                    status = "expired";
-                } else if (bookedCount >= capacity) {
-                    status = "full";
-                }
+            // 🔹 Determine slot status
+            if (date === todayDateString && endTime && endTime < currentTime) {
+                status = "expired"; // ✅ Expired if today & end_time passed
+            } else if (bookedCount >= capacity) {
+                status = "full"; // ✅ Mark as "full" if fully booked
             }
 
             slots.push({
                 id: slotId,
-                start_time: startTime,
-                end_time: endTime,
+                start_time: slotData.start_time,
+                end_time: endTimeString || "N/A", // Avoid null values
                 capacity,
                 booked_count: bookedCount,
-                status,
+                status, // ✅ Properly determined slot status
             });
         });
 
@@ -133,18 +130,5 @@ exports.getSlotsForDate = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
-
-// 🔹 Function to convert 24-hour time to 12-hour AM/PM format
-const convertTo12HourFormat = (timeString) => {
-    if (!timeString || typeof timeString !== "string") return "Invalid Time";
-
-    const [hours, minutes] = timeString.split(":").map(Number);
-    if (isNaN(hours) || isNaN(minutes)) return "Invalid Time";
-
-    const period = hours >= 12 ? "PM" : "AM";
-    const hour12 = hours % 12 || 12; // Convert 0 to 12
-    return `${hour12}:${minutes.toString().padStart(2, "0")} ${period}`;
-};
-
 
 
