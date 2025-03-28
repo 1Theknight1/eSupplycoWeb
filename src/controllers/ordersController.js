@@ -1,7 +1,7 @@
 /* eslint-disable */
 
 const admin=require("firebase-admin")
-const {db,rtdb}=require("../utils/firebase-config")
+const {db,rtdb,fcm}=require("../utils/firebase-config")
 
 
 async function logApiCall( action) {
@@ -534,88 +534,161 @@ exports.changeOrderStatue= async (req, res) => {
 };
 
 //delivery out for delivery && delivered && failed
-const sendOTP = async (phoneNumber) => {
+// const sendOTP = async (phoneNumber) => {
+//     try {
+//         const session = await auth.createSessionCookie(phoneNumber, { expiresIn: 30 * 60 * 1000 }); 
+//         return session;
+//     } catch (error) {
+//         console.error("Error sending OTP:", error);
+//         throw error;
+//     }
+// };
+// exports.outForDelivery= async (req, res) => {
+//     const { orderId, status, otp, phoneNumber, sessionId, deliveryBoyId } = req.body;
+  
+//     if (!orderId || !status) {
+//       return res.status(400).json({ error: "Missing required fields" });
+//     }
+  
+//     try {
+//       const deliveryRef = db.collection("Delivery").doc(orderId);
+//       const orderRef = db.collection("orders").doc(orderId);
+//       const deliveryDoc = await deliveryRef.get();
+  
+//       if (!deliveryDoc.exists) {
+//         return res.status(404).json({ error: "Delivery not found" });
+//       }
+  
+//       let updatedStatus = status;
+  
+//       if (status === "Out For Delivery") {
+//         if (!deliveryBoyId) {
+//           return res.status(400).json({ error: "deliveryBoyId is required for out for delivery status" });
+//         }
+  
+//         // Generate and send OTP via Firebase
+//         const session = await sendOTP(phoneNumber);
+        
+//         // Update delivery document
+//         await deliveryRef.update({ 
+//           otpSessionId: session, 
+//           status: "Out For Delivery", 
+//           deliveryBoy: deliveryBoyId 
+//         });
+  
+//         // Update order status
+//         await orderRef.update({ 
+//           status: "Out For Delivery", 
+//           deliveryBoy: deliveryBoyId 
+//         });
+  
+//         return res.json({ message: "OTP sent to user, status updated", status: updatedStatus, sessionId: session });
+//       } 
+      
+//       else if (status === "Delivered") {
+//         // Verify OTP before marking as delivered
+//         if (!otp || !sessionId) {
+//           return res.status(400).json({ error: "OTP verification failed" });
+//         }
+//         try {
+//           await auth.verifySessionCookie(sessionId, true);
+//           updatedStatus = "Delivered";
+//         } catch (error) {
+//           return res.status(400).json({ error: "Invalid OTP" });
+//         }
+//       } 
+      
+//       else if (status === "Failed Attempt") {
+//         updatedStatus = "assigning";
+//         await orderRef.update({ status: "assigning" });
+//       }
+  
+//       // Update delivery status
+//       await deliveryRef.update({ status: updatedStatus });
+  
+//       // Reflect change in orders collection
+//       await orderRef.update({ status: updatedStatus });
+  
+//       return res.json({ message: "Delivery status updated", status: updatedStatus });
+  
+//     } catch (error) {
+//       console.error("Error updating delivery status:", error);
+//       return res.status(500).json({ error: "Internal server error" });
+//     }
+//   };
+  
+async function sendTestNotification(token,title,body) {
+    const message = {
+      token: token,
+      notification: {
+        title: title,
+        body: body,
+      },
+    };
+  
     try {
-        const session = await auth.createSessionCookie(phoneNumber, { expiresIn: 30 * 60 * 1000 }); 
-        return session;
+      const response = await fcm.send(message);
+      console.log("✅ Message sent successfully:", response);
     } catch (error) {
-        console.error("Error sending OTP:", error);
-        throw error;
+      console.error("❌ Error sending message:", error);
+    }
+  }
+
+
+
+exports.updateOutForDelivery= async (req, res) => {
+    try {
+        const { orderId, deliveryBoyId, status } = req.body;
+        if (!orderId || !deliveryBoyId || !status) {
+            return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        const deliveryRef = admin.firestore().collection("Delivery").doc(orderId);
+        const orderRef = admin.firestore().collection("orders").doc(orderId);
+        const deliveryDoc = await deliveryRef.get();
+
+        if (!deliveryDoc.exists) {
+            return res.status(404).json({ error: "Order not found in Delivery collection" });
+        }
+
+        const currentStatus = deliveryDoc.data().status;
+        const timestamp = admin.firestore.FieldValue.serverTimestamp();
+
+        if (currentStatus === "assigning" && status === "Out For Delivery") {
+            await deliveryRef.update({ status: "Out For Delivery", deliveryBoy: deliveryBoyId });
+            await orderRef.update({ status: "Out For Delivery", deliveryBoy: deliveryBoyId });
+        
+            // Fetch user data correctly
+            const userDoc = await admin.firestore().collection("users").doc(orderId).get();
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                const fcm = userData.fcm;
+                if (fcm) {
+                    sendTestNotification(fcm, "Order updates", "Your order is out for delivery");
+                }
+            }
+        
+            return res.json({ success: true, message: "Order marked as Out For Delivery" });
+        }
+
+        if (currentStatus === "Out For Delivery" && status === "Delivered") {
+            await deliveryRef.update({ status: "Delivered", deliveredAt: timestamp });
+            await orderRef.update({ status: "Delivered", deliveredAt: timestamp });
+            const userDoc = await admin.firestore().collection("users").doc(orderId).get();
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                const fcm = userData.fcm;
+                if (fcm) {
+                    sendTestNotification(fcm, "Order updates", "Your order is succesfully delivered.Thank you for ordering from eSupplyco");
+                }
+            }
+            return res.json({ success: true, message: "Order marked as Delivered" });
+        }
+
+        return res.status(400).json({ error: "Invalid status transition" });
+    } catch (error) {
+        console.error("Error updating delivery status:", error);
+        return res.status(500).json({ error: "Internal server error" });
     }
 };
-exports.outForDelivery= async (req, res) => {
-    const { orderId, status, otp, phoneNumber, sessionId, deliveryBoyId } = req.body;
-  
-    if (!orderId || !status) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-  
-    try {
-      const deliveryRef = db.collection("Delivery").doc(orderId);
-      const orderRef = db.collection("orders").doc(orderId);
-      const deliveryDoc = await deliveryRef.get();
-  
-      if (!deliveryDoc.exists) {
-        return res.status(404).json({ error: "Delivery not found" });
-      }
-  
-      let updatedStatus = status;
-  
-      if (status === "Out For Delivery") {
-        if (!deliveryBoyId) {
-          return res.status(400).json({ error: "deliveryBoyId is required for out for delivery status" });
-        }
-  
-        // Generate and send OTP via Firebase
-        const session = await sendOTP(phoneNumber);
-        
-        // Update delivery document
-        await deliveryRef.update({ 
-          otpSessionId: session, 
-          status: "Out For Delivery", 
-          deliveryBoy: deliveryBoyId 
-        });
-  
-        // Update order status
-        await orderRef.update({ 
-          status: "Out For Delivery", 
-          deliveryBoy: deliveryBoyId 
-        });
-  
-        return res.json({ message: "OTP sent to user, status updated", status: updatedStatus, sessionId: session });
-      } 
-      
-      else if (status === "Delivered") {
-        // Verify OTP before marking as delivered
-        if (!otp || !sessionId) {
-          return res.status(400).json({ error: "OTP verification failed" });
-        }
-        try {
-          await auth.verifySessionCookie(sessionId, true);
-          updatedStatus = "Delivered";
-        } catch (error) {
-          return res.status(400).json({ error: "Invalid OTP" });
-        }
-      } 
-      
-      else if (status === "Failed Attempt") {
-        updatedStatus = "assigning";
-        await orderRef.update({ status: "assigning" });
-      }
-  
-      // Update delivery status
-      await deliveryRef.update({ status: updatedStatus });
-  
-      // Reflect change in orders collection
-      await orderRef.update({ status: updatedStatus });
-  
-      return res.json({ message: "Delivery status updated", status: updatedStatus });
-  
-    } catch (error) {
-      console.error("Error updating delivery status:", error);
-      return res.status(500).json({ error: "Internal server error" });
-    }
-  };
-  
 
-  

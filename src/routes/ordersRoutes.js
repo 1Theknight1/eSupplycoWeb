@@ -13,6 +13,7 @@ router.get("/activeOrders/:cardNumber",getActiveOrdersByNumber);
 router.get("/bookings/:cardNumber",getHistory);
 router.patch("/status/:orderId",changeOrderStatue);
 router.post("/assignDelivery",assignDelivery);
-router.post("/changeDeliveryOrderStatus",outForDelivery);
+//router.post("/changeDeliveryOrderStatus",outForDelivery);
+router.post("/changeDeliveryOrderStatus",updateOutForDelivery);
 
 module.exports=router
