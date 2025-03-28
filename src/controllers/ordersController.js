@@ -654,7 +654,7 @@ exports.updateOutForDelivery= async (req, res) => {
         const currentStatus = deliveryDoc.data().status;
         const timestamp = admin.firestore.FieldValue.serverTimestamp();
 
-        if (currentStatus === "assigning" && status === "Out For Delivery") {
+        if (currentStatus === "In progress" && status === "Out For Delivery") {
             await deliveryRef.update({ status: "Out For Delivery", deliveryBoy: deliveryBoyId });
             await orderRef.update({ status: "Out For Delivery", deliveryBoy: deliveryBoyId });
         
