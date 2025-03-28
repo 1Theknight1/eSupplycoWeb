@@ -1,7 +1,7 @@
 /* eslint-disable */
 
 const express=require("express");
-const {placeOrder,calculateDiscount,getOrdersByNumber,cancelOrder,getActiveOrdersByNumber,getHistory,changeOrderStatue,assignDelivery,outForDelivery}=require("../../src/controllers/ordersController");
+const {placeOrder,calculateDiscount,getOrdersByNumber,cancelOrder,getActiveOrdersByNumber,getHistory,changeOrderStatue,assignDelivery,updateOutForDelivery}=require("../../src/controllers/ordersController");
 const{authenticateUser}=require("../../src/middlewares/authMiddleware");
 const router=express.Router();
 
