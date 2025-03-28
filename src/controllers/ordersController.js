@@ -662,7 +662,7 @@ exports.updateOutForDelivery= async (req, res) => {
             const userDoc = await admin.firestore().collection("users").doc(orderId).get();
             if (userDoc.exists) {
                 const userData = userDoc.data();
-                const fcm = userData.fcm;
+                const fcm = userData.fcmToken;
                 if (fcm) {
                     sendTestNotification(fcm, "Order updates", "Your order is out for delivery");
                 }
@@ -677,7 +677,7 @@ exports.updateOutForDelivery= async (req, res) => {
             const userDoc = await admin.firestore().collection("users").doc(orderId).get();
             if (userDoc.exists) {
                 const userData = userDoc.data();
-                const fcm = userData.fcm;
+                const fcm = userData.fcmToken;
                 if (fcm) {
                     sendTestNotification(fcm, "Order updates", "Your order is succesfully delivered.Thank you for ordering from eSupplyco");
                 }
