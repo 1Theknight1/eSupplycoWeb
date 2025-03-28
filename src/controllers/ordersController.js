@@ -638,8 +638,8 @@ async function sendTestNotification(token,title,body) {
 
 exports.updateOutForDelivery= async (req, res) => {
     try {
-        const { orderId, deliveryBoyId, status } = req.body;
-        if (!orderId || !deliveryBoyId || !status) {
+        const { orderId, deliveryBoyId, status,cardNumber } = req.body;
+        if (!orderId || !deliveryBoyId || !status || !cardNumber) {
             return res.status(400).json({ error: "Missing required fields" });
         }
 
@@ -659,7 +659,7 @@ exports.updateOutForDelivery= async (req, res) => {
             await orderRef.update({ status: "Out For Delivery", deliveryBoy: deliveryBoyId });
         
             // Fetch user data correctly
-            const userDoc = await admin.firestore().collection("users").doc(orderId).get();
+            const userDoc = await admin.firestore().collection("users").doc(cardNumber).get();
             if (userDoc.exists) {
                 const userData = userDoc.data();
                 const fcm = userData.fcmToken;
@@ -674,7 +674,7 @@ exports.updateOutForDelivery= async (req, res) => {
         if (currentStatus === "Out For Delivery" && status === "Delivered") {
             await deliveryRef.update({ status: "Delivered", deliveredAt: timestamp });
             await orderRef.update({ status: "Delivered", deliveredAt: timestamp });
-            const userDoc = await admin.firestore().collection("users").doc(orderId).get();
+            const userDoc = await admin.firestore().collection("users").doc(cardNumber).get();
             if (userDoc.exists) {
                 const userData = userDoc.data();
                 const fcm = userData.fcmToken;
