@@ -636,9 +636,9 @@ async function sendTestNotification(token,title,body) {
 
 
 
-exports.updateOutForDelivery= async (req, res) => {
+  exports.updateOutForDelivery = async (req, res) => {
     try {
-        const { orderId, deliveryBoyId, status,cardNumber } = req.body;
+        const { orderId, deliveryBoyId, status, cardNumber } = req.body;
         if (!orderId || !deliveryBoyId || !status || !cardNumber) {
             return res.status(400).json({ error: "Missing required fields" });
         }
@@ -646,42 +646,58 @@ exports.updateOutForDelivery= async (req, res) => {
         const deliveryRef = admin.firestore().collection("Delivery").doc(orderId);
         const orderRef = admin.firestore().collection("orders").doc(orderId);
         const deliveryDoc = await deliveryRef.get();
+        const timestamp = admin.firestore.FieldValue.serverTimestamp();
 
         if (!deliveryDoc.exists) {
             return res.status(404).json({ error: "Order not found in Delivery collection" });
         }
 
         const currentStatus = deliveryDoc.data().status;
-        const timestamp = admin.firestore.FieldValue.serverTimestamp();
+        const deliveryBoyRef = admin.firestore().collection("deliveryBoys").doc(deliveryBoyId);
+        const deliveryBoyOrderRef = deliveryBoyRef.collection("orders").doc(orderId);
 
         if (currentStatus === "In progress" && status === "Out For Delivery") {
             await deliveryRef.update({ status: "Out For Delivery", deliveryBoy: deliveryBoyId });
             await orderRef.update({ status: "Out For Delivery", deliveryBoy: deliveryBoyId });
-        
-            // Fetch user data correctly
+
+            // Store order inside deliveryBoy's subcollection
+            await deliveryBoyOrderRef.set({
+                orderId,
+                status: "Out For Delivery",
+                assignedAt: timestamp,
+            });
+
+            // Send notification to user
             const userDoc = await admin.firestore().collection("users").doc(cardNumber).get();
             if (userDoc.exists) {
-                const userData = userDoc.data();
-                const fcm = userData.fcmToken;
+                const fcm = userDoc.data().fcmToken;
                 if (fcm) {
                     sendTestNotification(fcm, "Order updates", "Your order is out for delivery");
                 }
             }
-        
+
             return res.json({ success: true, message: "Order marked as Out For Delivery" });
         }
 
         if (currentStatus === "Out For Delivery" && status === "Delivered") {
             await deliveryRef.update({ status: "Delivered", deliveredAt: timestamp });
             await orderRef.update({ status: "Delivered", deliveredAt: timestamp });
+
+            // Update order status in deliveryBoy's subcollection
+            await deliveryBoyOrderRef.update({
+                status: "Delivered",
+                deliveredAt: timestamp,
+            });
+
+            // Send notification to user
             const userDoc = await admin.firestore().collection("users").doc(cardNumber).get();
             if (userDoc.exists) {
-                const userData = userDoc.data();
-                const fcm = userData.fcmToken;
+                const fcm = userDoc.data().fcmToken;
                 if (fcm) {
-                    sendTestNotification(fcm, "Order updates", "Your order is succesfully delivered.Thank you for ordering from eSupplyco");
+                    sendTestNotification(fcm, "Order updates", "Your order is successfully delivered. Thank you for ordering from eSupplyco");
                 }
             }
+
             return res.json({ success: true, message: "Order marked as Delivered" });
         }
 
@@ -691,4 +707,5 @@ exports.updateOutForDelivery= async (req, res) => {
         return res.status(500).json({ error: "Internal server error" });
     }
 };
+
 
