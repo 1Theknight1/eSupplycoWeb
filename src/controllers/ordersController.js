@@ -660,12 +660,16 @@ async function sendTestNotification(token,title,body) {
             await deliveryRef.update({ status: "Out For Delivery", deliveryBoy: deliveryBoyId });
             await orderRef.update({ status: "Out For Delivery", deliveryBoy: deliveryBoyId });
 
-            // Store order inside deliveryBoy's subcollection
-            await deliveryBoyOrderRef.set({
-                orderId,
-                status: "Out For Delivery",
-                assignedAt: timestamp,
-            });
+            // Fetch the entire order details
+            const orderData = await orderRef.get();
+            if (orderData.exists) {
+                // Copy the entire order data to deliveryBoy's subcollection
+                await deliveryBoyOrderRef.set({
+                    ...orderData.data(),
+                    status: "Out For Delivery",
+                    assignedAt: timestamp,
+                });
+            }
 
             // Send notification to user
             const userDoc = await admin.firestore().collection("users").doc(cardNumber).get();
@@ -707,5 +711,3 @@ async function sendTestNotification(token,title,body) {
         return res.status(500).json({ error: "Internal server error" });
     }
 };
-
-
