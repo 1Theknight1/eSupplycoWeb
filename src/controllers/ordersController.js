@@ -572,6 +572,7 @@ async function sendTestNotification(token,title,body) {
 
         const currentStatus = deliveryDoc.data().status;
         const deliveryBoyRef = admin.firestore().collection("deliveryBoy").doc(deliveryBoyId);
+      
         const deliveryBoyOrderRef = deliveryBoyRef.collection("orders").doc(orderId);
 
         if (currentStatus === "In progress" && status === "Out For Delivery") {
