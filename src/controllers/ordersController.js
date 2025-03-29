@@ -646,7 +646,32 @@ exports.getDeliveryBoyOrders = async (req, res) => {
             return res.json({ success: true, orders: [], message: "No orders found" });
         }
 
-        const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const orders = await Promise.all(
+            snapshot.docs.map(async (doc) => {
+                const orderData = doc.data();
+                const cardNumber = orderData.cardNumber;
+
+                let phoneNumber = null;
+                let address = null;
+
+                // Fetch user details from "users" collection using cardNumber
+                if (cardNumber) {
+                    const userDoc = await admin.firestore().collection("users").doc(cardNumber).get();
+                    if (userDoc.exists) {
+                        const userData = userDoc.data();
+                        phoneNumber = userData.phoneNumber || null;
+                        address = userData.address || null;
+                    }
+                }
+
+                return {
+                    id: doc.id,
+                    ...orderData,
+                    phoneNumber,
+                    address
+                };
+            })
+        );
 
         return res.json({ success: true, orders });
     } catch (error) {
