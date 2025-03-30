@@ -144,21 +144,28 @@ exports.placeOrder = async (req, res) => {
             return res.status(404).json({ message: "Supplyco not found" });
         }
 
-        const currentDate = new Date().toISOString().split("T")[0];
-        const supplycoData = supplycoDoc.data();
-        const lastResetDate = supplycoData.lastResetDate || null;
-        const name = supplycoData.name || null;
+        
 
-        let tokenNumber = 1;
-        if (lastResetDate === currentDate) {
-            tokenNumber = (supplycoData.tokenNumber || 0) + 1;
-        }
+        let tokenNumber = null;
 
-        // Update the supplyco document with the new token number and last reset date
-        await supplycoRef.update({
-            tokenNumber,
-            lastResetDate: currentDate,
-        });
+if (orderType !== "Delivery") {
+    const currentDate = new Date().toISOString().split("T")[0];
+    const supplycoData = supplycoDoc.data();
+    const lastResetDate = supplycoData.lastResetDate || null;
+    const nameSupp = supplycoData.name || null;
+
+    tokenNumber = 1;
+    if (lastResetDate === currentDate) {
+        tokenNumber = (supplycoData.tokenNumber || 0) + 1;
+    }
+
+    // Update token number only for Pickup orders
+    await supplycoRef.update({
+        tokenNumber,
+        lastResetDate: currentDate,
+    });
+}
+
 
         // ✅ Save the order in Firestore
         const orderData = {
@@ -168,12 +175,13 @@ exports.placeOrder = async (req, res) => {
             ...(orderType === "Delivery" && { location: { latitude, longitude } }),
             products: responseProducts,
             totalPrice: totalFinalPrice,
-            name,
+            nameSupp,
             status: "In progress",
             expired: false,
-            tokenNumber,
+            ...(tokenNumber !== null && { tokenNumber }), // Only add tokenNumber for non-delivery orders
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
         };
+        
 
         const orderRef = await db.collection("orders").add(orderData);
 
