@@ -626,3 +626,20 @@ exports.updateDeliveryRequestStatus = async (req, res) => {
       res.status(500).json({ error: "Internal server error", details: error.message });
   }
 };
+
+//get deliveryboydetails
+exports.getDeliveryBoyDetails= async (req, res) => {
+  try {
+      const { deliveryBoyId } = req.params;
+      const doc = await admin.firestore().collection("deliveryBoy").doc(deliveryBoyId).get();
+
+      if (!doc.exists) {
+          return res.status(404).json({ error: "Delivery Boy not found" });
+      }
+
+      res.json({ id: doc.id, ...doc.data() });
+  } catch (error) {
+      console.error("Error fetching delivery boy details:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+  }
+};
