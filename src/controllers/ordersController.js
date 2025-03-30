@@ -572,17 +572,16 @@ async function sendTestNotification(token,title,body) {
 
         const currentStatus = deliveryDoc.data().status;
         const deliveryBoyRef = admin.firestore().collection("deliveryBoy").doc(deliveryBoyId);
-      
         const deliveryBoyOrderRef = deliveryBoyRef.collection("orders").doc(orderId);
 
         if (currentStatus === "In progress" && status === "Out For Delivery") {
             await deliveryRef.update({ status: "Out For Delivery", deliveryBoy: deliveryBoyId });
             await orderRef.update({ status: "Out For Delivery", deliveryBoy: deliveryBoyId });
 
-            // Fetch the entire order details
+            // Fetch order details
             const orderData = await orderRef.get();
             if (orderData.exists) {
-                // Copy the entire order data to deliveryBoy's subcollection
+                // Copy order data to deliveryBoy's subcollection
                 await deliveryBoyOrderRef.set({
                     ...orderData.data(),
                     status: "Out For Delivery",
@@ -603,13 +602,33 @@ async function sendTestNotification(token,title,body) {
         }
 
         if (currentStatus === "Out For Delivery" && status === "Delivered") {
+            // Fetch order details to calculate earnings
+            const orderData = await orderRef.get();
+            let earnings = 0;
+            if (orderData.exists) {
+                const totalPrice = orderData.data().totalPrice || 0; // Ensure totalPrice exists
+                earnings = (totalPrice * 0.1).toFixed(2); // 10% of total price
+            }
+
             await deliveryRef.update({ status: "Delivered", deliveredAt: timestamp });
             await orderRef.update({ status: "Delivered", deliveredAt: timestamp });
 
-            // Update order status in deliveryBoy's subcollection
+            // Update order status and earnings in deliveryBoy's subcollection
             await deliveryBoyOrderRef.update({
                 status: "Delivered",
                 deliveredAt: timestamp,
+                earnings: earnings,
+            });
+
+            // Update total earnings of the delivery boy
+            await admin.firestore().runTransaction(async (transaction) => {
+                const deliveryBoyDoc = await transaction.get(deliveryBoyRef);
+                if (deliveryBoyDoc.exists) {
+                    const currentEarnings = deliveryBoyDoc.data().earnings || 0;
+                    transaction.update(deliveryBoyRef, {
+                        earnings: currentEarnings + parseFloat(earnings),
+                    });
+                }
             });
 
             // Send notification to user
@@ -621,7 +640,7 @@ async function sendTestNotification(token,title,body) {
                 }
             }
 
-            return res.json({ success: true, message: "Order marked as Delivered" });
+            return res.json({ success: true, message: "Order marked as Delivered", earnings: earnings });
         }
 
         return res.status(400).json({ error: "Invalid status transition" });
@@ -630,6 +649,7 @@ async function sendTestNotification(token,title,body) {
         return res.status(500).json({ error: "Internal server error" });
     }
 };
+
 
 //get orders of deliveryboy
 exports.getDeliveryBoyOrders = async (req, res) => {
