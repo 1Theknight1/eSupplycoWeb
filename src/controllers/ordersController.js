@@ -145,7 +145,7 @@ exports.placeOrder = async (req, res) => {
         }
 
         const supplycoData = supplycoDoc.data();
-        const nameSupp = supplycoData.name || null;
+        const name = supplycoData.name || null;
         
         let tokenNumber = null;
 
@@ -173,7 +173,7 @@ exports.placeOrder = async (req, res) => {
             ...(orderType === "Delivery" && { location: { latitude, longitude } }),
             products: responseProducts,
             totalPrice: totalFinalPrice,
-            nameSupp,
+            name,
             status: "In progress",
             expired: false,
             ...(tokenNumber !== null && { tokenNumber }), // Only add tokenNumber for non-delivery orders
