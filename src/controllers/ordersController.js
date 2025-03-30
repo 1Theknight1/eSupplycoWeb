@@ -144,28 +144,26 @@ exports.placeOrder = async (req, res) => {
             return res.status(404).json({ message: "Supplyco not found" });
         }
 
+        const supplycoData = supplycoDoc.data();
         const nameSupp = supplycoData.name || null;
-
+        
         let tokenNumber = null;
 
-if (orderType !== "Delivery") {
-    const currentDate = new Date().toISOString().split("T")[0];
-    const supplycoData = supplycoDoc.data();
-    const lastResetDate = supplycoData.lastResetDate || null;
-    
+        if (orderType !== "Delivery") {
+            const currentDate = new Date().toISOString().split("T")[0];
+            const lastResetDate = supplycoData.lastResetDate || null;
 
-    tokenNumber = 1;
-    if (lastResetDate === currentDate) {
-        tokenNumber = (supplycoData.tokenNumber || 0) + 1;
-    }
+            tokenNumber = 1;
+            if (lastResetDate === currentDate) {
+                tokenNumber = (supplycoData.tokenNumber || 0) + 1;
+            }
 
-    // Update token number only for Pickup orders
-    await supplycoRef.update({
-        tokenNumber,
-        lastResetDate: currentDate,
-    });
-}
-
+            // Update token number only for Pickup orders
+            await supplycoRef.update({
+                tokenNumber,
+                lastResetDate: currentDate,
+            });
+        }
 
         // ✅ Save the order in Firestore
         const orderData = {
@@ -181,7 +179,6 @@ if (orderType !== "Delivery") {
             ...(tokenNumber !== null && { tokenNumber }), // Only add tokenNumber for non-delivery orders
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
         };
-        
 
         const orderRef = await db.collection("orders").add(orderData);
 
@@ -199,7 +196,7 @@ if (orderType !== "Delivery") {
 
         await logApiCall(`${cardNumber} placed a ${orderType} order at ${supplycoId}`);
 
-        console.log(`📦 Order placed successfully: ${orderRef.id}, Token Number: ${tokenNumber}`);
+        console.log(`📦 Order placed successfully: ${orderRef.id}${tokenNumber !== null ? `, Token Number: ${tokenNumber}` : ''}`);
         res.status(201).json({ message: "Order placed successfully!", orderId: orderRef.id, tokenNumber });
 
     } catch (error) {
@@ -207,6 +204,7 @@ if (orderType !== "Delivery") {
         res.status(500).json({ error: "Internal server error", details: error.message });
     }
 };
+
 
 
 //calculate discount
