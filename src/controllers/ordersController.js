@@ -144,7 +144,7 @@ exports.placeOrder = async (req, res) => {
             return res.status(404).json({ message: "Supplyco not found" });
         }
 
-        
+        const nameSupp = supplycoData.name || null;
 
         let tokenNumber = null;
 
@@ -152,7 +152,7 @@ if (orderType !== "Delivery") {
     const currentDate = new Date().toISOString().split("T")[0];
     const supplycoData = supplycoDoc.data();
     const lastResetDate = supplycoData.lastResetDate || null;
-    const nameSupp = supplycoData.name || null;
+    
 
     tokenNumber = 1;
     if (lastResetDate === currentDate) {
