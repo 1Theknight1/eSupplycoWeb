@@ -1,6 +1,7 @@
 /* eslint-disable */
 
-const {db,admin}=require("../utils/firebase-config")
+const {db}=require("../utils/firebase-config")
+const admin=require("firebase-admin")
 //const admin=require("firebase-admin")
 
 //1)Get phone number
