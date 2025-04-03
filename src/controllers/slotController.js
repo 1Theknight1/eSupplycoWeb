@@ -72,11 +72,11 @@ exports.getSlotsForDate = async (req, res) => {
     try {
         const slotsSnapshot = await db.collection(`supplycos/${supplycoId}/slots`).get();
         const bookingsSnapshot = await db.collection(`supplycos/${supplycoId}/bookings`).doc(date).get();
-
+        
         const currentTime = new Date();
         const todayDateString = currentTime.toISOString().split('T')[0];
         const isToday = date === todayDateString;
-
+        
         const slots = [];
         const bookings = bookingsSnapshot.exists ? bookingsSnapshot.data() : {};
 
@@ -85,34 +85,48 @@ exports.getSlotsForDate = async (req, res) => {
             const slotId = doc.id;
             const bookedCount = bookings[slotId]?.booked_count || 0;
             const capacity = slotData.capacity;
+            
+            let endTime = null;
             let status = "active";
-
-            // Ensure end_time is in AM/PM format
-            let endTimeStr = slotData.end_time;
-            if (!endTimeStr.includes("AM") && !endTimeStr.includes("PM")) {
-                endTimeStr += " AM"; // Default to AM if missing (this might need adjustment)
-            }
-
+            
             try {
-                // Convert to Date object
-                const [time, period] = endTimeStr.split(" ");
-                let [hours, minutes] = time.split(":").map(Number);
-                
-                if (period === "PM" && hours !== 12) hours += 12;  // Convert PM times
-                if (period === "AM" && hours === 12) hours = 0;    // Convert 12 AM to 00:00
+                // Extract end time string
+                let endTimeStr = slotData.end_time;
+                let [timePart, period] = endTimeStr.split(" ");
+                let [hours, minutes] = timePart.split(":").map(Number);
 
-                // Construct full Date object in UTC
-                const slotEndTime = new Date(`${date}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00.000Z`);
+                if (period === "PM" && hours !== 12) {
+                    hours += 12; // Convert PM times to 24-hour format (except 12 PM)
+                } else if (period === "AM" && hours === 12) {
+                    hours = 0; // Convert 12 AM to 00:00
+                }
 
-                // Determine slot status
-                if (isToday && slotEndTime < currentTime) {
+                const slotDate = new Date(date);
+                endTime = new Date(
+                    slotDate.getFullYear(),
+                    slotDate.getMonth(),
+                    slotDate.getDate(),
+                    hours,
+                    minutes
+                );
+
+                // If end time is 12:00 AM, it belongs to the **next day**
+                if (slotData.end_time === "12:00 AM") {
+                    endTime.setDate(endTime.getDate() + 1);
+                }
+
+                // Debugging logs
+                console.log(`Slot: ${slotId}, End Time: ${endTime.toISOString()}, Current Time: ${currentTime.toISOString()}`);
+
+                // Determine status
+                if (isToday && endTime < currentTime) {
                     status = "expired";
                 } else if (bookedCount >= capacity) {
                     status = "full";
                 }
             } catch (error) {
                 console.error("Error parsing time:", error);
-                status = "active"; // Fallback to active
+                status = "active"; // Default to active if parsing fails
             }
 
             slots.push({
@@ -121,7 +135,7 @@ exports.getSlotsForDate = async (req, res) => {
                 end_time: slotData.end_time,
                 capacity,
                 booked_count: bookedCount,
-                status,
+                status, 
             });
         });
 
@@ -131,3 +145,4 @@ exports.getSlotsForDate = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
+
