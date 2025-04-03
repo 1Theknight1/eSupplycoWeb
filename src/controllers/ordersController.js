@@ -460,7 +460,7 @@ exports.getHistory = async (req, res) => {
 exports.changeOrderStatue= async (req, res) => {
     try {
       const { orderId } = req.params;
-      const { status } = req.body;
+      const { status ,cardNumber} = req.body;
   
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
@@ -472,10 +472,21 @@ exports.changeOrderStatue= async (req, res) => {
       if (!orderDoc.exists) {
         return res.status(404).json({ message: "Order not found" });
       }
-  
+
       await orderRef.update({ status });
       await logApiCall(`Order : ${orderId}  updated to ${status}` );
+      if(status=="Ready"){
+
+        const userDoc = await admin.firestore().collection("users").doc(cardNumber).get();
+            if (userDoc.exists) {
+                const fcm = userDoc.data().fcmToken;
+                if (fcm) {
+                    sendTestNotification(fcm, "Order updates", "Your order is ready to collect");
+                }
+            }
+      
   
+      }
       return res.status(200).json({ message: `Order ${orderId} updated to ${status}` });
     } catch (error) {
       return res.status(500).json({ message: "Internal Server Error", error: error.message });
