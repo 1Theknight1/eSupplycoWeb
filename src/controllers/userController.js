@@ -156,7 +156,7 @@ exports.sendFeedBack = async (req, res) => {
   }
 
   try {
-    const supplycoRef = db.collection("Supplycos").doc(supplycoId);
+    const supplycoRef = db.collection("supplycos").doc(supplycoId);
     const supplycoDoc = await supplycoRef.get();
 
     if (!supplycoDoc.exists) {
