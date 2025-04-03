@@ -229,42 +229,42 @@ exports.getSupplycoOrders= async (req, res) => {
 
 // API to add a walk-in slot
 exports.addSlot = async (req, res) => {
-  try {
-      const { supplycoId } = req.params;
-      const { start_time, end_time, capacity, booked_count = 0 } = req.body;
+    try {
+        const { supplycoId } = req.params;
+        const { start_time, end_time, capacity, booked_count = 0 } = req.body;
 
-      if (!start_time || !end_time || !capacity) {
-          return res.status(400).json({ error: "Missing required fields" });
-      }
+        if (!start_time || !end_time || !capacity) {
+            return res.status(400).json({ error: "Missing required fields" });
+        }
 
-      // Convert current time and slot times to comparable formats
-      const now = moment().format("HH:mm");
-      const slotEndTime = moment(end_time, "HH:mm").format("HH:mm");
+        // Convert current time and slot times to comparable formats
+        const now = moment().format("HH:mm");
+        const slotEndTime = moment(end_time, "HH:mm").format("HH:mm");
 
-      // Determine status based on current time
-      let status = now > slotEndTime ? "expired" : "active";
+        // Determine status based on current time
+        let status = now > slotEndTime ? "expired" : "active";
 
-      // Generate new slot ID
-      const newSlotId = await generateSlotId(supplycoId);
+        // Generate new slot ID
+        const newSlotId = await generateSlotId(supplycoId);
 
-      // Slot data
-      const slotData = {
-          start_time,
-          end_time,
-          capacity,
-          booked_count,
-          status,
-      };
+        // Slot data
+        const slotData = {
+            start_time,
+            end_time,
+            capacity,
+            booked_count,
+            status,
+        };
 
-      // Add slot to Firestore
-      await db.collection("supplycos").doc(supplycoId).collection("slots").doc(newSlotId).set(slotData);
-      await logApiCall(`New walk-in Slot :${newSlotId} added at ${supplycoId}`);
-      
-      return res.status(201).json({ message: "Walk-in slot added successfully", slotId: newSlotId });
-  } catch (error) {
-      console.error("Error adding walk-in slot:", error);
-      return res.status(500).json({ error: "Internal server error" });
-  }
+        // Add slot to Firestore
+        await db.collection("supplycos").doc(supplycoId).collection("slots").doc(newSlotId).set(slotData);
+        await logApiCall(`New walk-in Slot :${newSlotId} added at ${supplycoId}`);
+        
+        return res.status(201).json({ message: "Walk-in slot added successfully", slotId: newSlotId });
+    } catch (error) {
+        console.error("Error adding walk-in slot:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
 };
 
 //walkin all slots for supplyco
