@@ -8,6 +8,5 @@ router.post("/getPhoneNumber",getPhoneNumber)
 router.get("/supplycos",getAllSupplycos)
 router.get("/searchSupplyco",getSupplycosByTaluk)
 router.get("/getDetails/:cardNumber",getUserProfile)
-// router.post("/sendFeedBack",sendFeedBack)
 
 module.exports=router

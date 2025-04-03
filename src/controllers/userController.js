@@ -1,7 +1,7 @@
 /* eslint-disable */
 
 const {db}=require("../utils/firebase-config")
-const admin=require("firebase-admin")
+
 //const admin=require("firebase-admin")
 
 //1)Get phone number
@@ -148,35 +148,3 @@ exports.getUserProfile = async (req, res) => {
   }
 };
 
-// exports.sendFeedBack = async (req, res) => {
-//   const { feedBack, supplycoId, cardNumber } = req.body;
-
-//   if (!feedBack || !supplycoId || !cardNumber) {
-//     return res.status(400).json({ error: "Missing fields" });
-//   }
-
-//   try {
-//     const supplycoRef = db.collection("Supplycos").doc(supplycoId);
-//     const supplycoDoc = await supplycoRef.get();
-
-//     if (!supplycoDoc.exists) {
-//       return res.status(400).json({ error: "Supplyco doesn't exist" });
-//     }
-
-//     const data = {
-//       cardNumber,
-//       feedBack,
-//       timestamp: admin.firestore.FieldValue.serverTimestamp(), // Add timestamp
-//     };
-
-//     // ✅ Correct way to add a document inside a subcollection
-//     await supplycoRef.collection("FeedBack").add(data);
-
-//     res.status(200).json({ success: "Feedback has been added" });
-//   } catch (e) {
-//     console.error("Error sending feedback: ", e);
-//     res.status(500).json({ error: "Internal server error" });
-//   }
-// };
-
-  
