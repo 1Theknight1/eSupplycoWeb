@@ -72,11 +72,12 @@ exports.getSlotsForDate = async (req, res) => {
     try {
         const slotsSnapshot = await db.collection(`supplycos/${supplycoId}/slots`).get();
         const bookingsSnapshot = await db.collection(`supplycos/${supplycoId}/bookings`).doc(date).get();
-        
-        const currentTime = new Date();  // Get current time in UTC
+
+        // Get current time (local timezone) for accurate comparison
+        const currentTime = new Date();
         const todayDateString = new Date().toISOString().split('T')[0];
         const isToday = date === todayDateString;
-        
+
         const slots = [];
         const bookings = bookingsSnapshot.exists ? bookingsSnapshot.data() : {};
 
@@ -85,28 +86,35 @@ exports.getSlotsForDate = async (req, res) => {
             const slotId = doc.id;
             const bookedCount = bookings[slotId]?.booked_count || 0;
             const capacity = slotData.capacity;
-            
+
             let endTime = null;
             let status = "active";
-            
-            try {
-                // Convert slot end time to 24-hour format
-                let endTimeStr = slotData.end_time;
-                let [timePart, period] = endTimeStr.split(" ");
-                let [hours, minutes] = timePart.split(":").map(Number);
 
-                // Convert to 24-hour format
-                if (period === "PM" && hours !== 12) {
-                    hours += 12;
-                } else if (period === "AM" && hours === 12) {
-                    hours = 0;
+            try {
+                // Extract hours and minutes from end_time
+                let endTimeStr = slotData.end_time.trim();
+
+                // Check if AM/PM is missing and assume 24-hour format if necessary
+                let is24HourFormat = !endTimeStr.includes("AM") && !endTimeStr.includes("PM");
+                let period = endTimeStr.includes("AM") ? "AM" : (endTimeStr.includes("PM") ? "PM" : "");
+
+                // Remove AM/PM and split into hours and minutes
+                let [hours, minutes] = endTimeStr.replace(" AM", "").replace(" PM", "").split(":").map(Number);
+
+                // Convert to 24-hour format correctly
+                if (!is24HourFormat) {
+                    if (period === "PM" && hours !== 12) {
+                        hours += 12;
+                    } else if (period === "AM" && hours === 12) {
+                        hours = 0;
+                    }
                 }
 
-                // Create Date object for slot's end time (same date as `date`)
-                endTime = new Date(`${date}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00Z`);
+                // Create Date object for slot's end time
+                endTime = new Date(date);
+                endTime.setHours(hours, minutes, 0, 0); // Set hours and minutes
 
-                // Debugging logs
-                console.log(`Slot: ${slotId}, End Time (UTC): ${endTime.toISOString()}, Current Time (UTC): ${currentTime.toISOString()}`);
+                console.log(`Slot: ${slotId}, End Time: ${endTime.toISOString()}, Current Time: ${currentTime.toISOString()}`);
 
                 // Compare timestamps correctly
                 if (isToday && endTime.getTime() <= currentTime.getTime()) {
@@ -135,4 +143,5 @@ exports.getSlotsForDate = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
+
 
