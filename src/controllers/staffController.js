@@ -653,7 +653,7 @@ exports.getAllFeedback = async (req, res) => {
   }
 
   try {
-    const supplycoRef = db.collection("Supplycos").doc(supplycoId);
+    const supplycoRef = db.collection("supplycos").doc(supplycoId);
     const feedbackRef = supplycoRef.collection("FeedBack");
 
     const snapshot = await feedbackRef.orderBy("timestamp", "desc").get(); // Order by latest feedback
