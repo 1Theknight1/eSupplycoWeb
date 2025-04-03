@@ -82,24 +82,7 @@ exports.productsAdd = async (req, res) => {
   }
 };
 
-  //2).Supplyco Add
-  exports.supplycoAdd= authenticateUser, async (req, res) => {
-    try {
-      const { supplycoId, name,id } = req.body;
-  
-      if (!supplycoId || !name || !id) {
-        return res.status(400).json({ error: "Missing supplycoId or name" });
-      }
-  
-      const supplycoRef = db.collection("supplycoLocations").doc(supplycoId);
-      await supplycoRef.set({ name ,id});
-  
-      return res.status(201).json({ message: "Supplyco added successfully", supplycoId });
-    } catch (error) {
-      console.error("🔥 Error adding supplyco:", error);
-      return res.status(500).json({ error: "Internal Server Error" });
-    }
-  };
+
   
   //GET ALL SUPPLYCO
 exports.supplycoAll= authenticateUser,async(req,res)=>{

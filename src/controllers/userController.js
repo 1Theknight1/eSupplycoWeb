@@ -91,36 +91,6 @@ exports.getPhoneNumber= async (req, res) => {
 };
 
 
-//get user data
-// exports.getUserProfile = async (req, res) => {
-//   const { cardNumber } = req.params;
-
-//   if (!cardNumber) {
-//       return res.status(400).json({ error: "Missing card number" });
-//   }
-
-//   try {
-//       // 🔍 Fetch user details from Firestore (users collection)
-//       const userRef = db.collection("users").doc(cardNumber);
-//       const userDoc = await userRef.get();
-
-//       if (!userDoc.exists) {
-//           return res.status(404).json({ error: "User not found" });
-//       }
-
-//       // ✅ Extract user data
-//       const userData = userDoc.data();
-
-//       res.status(200).json({
-//           user: userData
-//       });
-
-//   } catch (error) {
-//       console.error("Error fetching user profile:", error);
-//       res.status(500).json({ error: "Internal Server Error" });
-//   }
-// };
-
 exports.getUserProfile = async (req, res) => {
   const { cardNumber } = req.params;
 
@@ -176,4 +146,36 @@ exports.getUserProfile = async (req, res) => {
       res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+exports.sendFeedBack = async (req, res) => {
+  const { feedBack, supplycoId, cardNumber } = req.body;
+
+  if (!feedBack || !supplycoId || !cardNumber) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
+
+  try {
+    const supplycoRef = db.collection("Supplycos").doc(supplycoId);
+    const supplycoDoc = await supplycoRef.get();
+
+    if (!supplycoDoc.exists) {
+      return res.status(400).json({ error: "Supplyco doesn't exist" });
+    }
+
+    const data = {
+      cardNumber,
+      feedBack,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(), // Add timestamp
+    };
+
+    // ✅ Correct way to add a document inside a subcollection
+    await supplycoRef.collection("FeedBack").add(data);
+
+    res.status(200).json({ success: "Feedback has been added" });
+  } catch (e) {
+    console.error("Error sending feedback: ", e);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
   
