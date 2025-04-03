@@ -69,58 +69,54 @@ exports.bookSlot = async (req, res) => {
 exports.getSlotsForDate = async (req, res) => {
     const { supplycoId, date } = req.params;
 
-    if (!supplycoId || !date) {
-        return res.status(400).json({ error: "Missing required parameters" });
-    }
-
     try {
-        const slotsRef = db.collection(`supplycos/${supplycoId}/slots`);
-        const bookingsRef = db.collection(`supplycos/${supplycoId}/bookings`).doc(date);
-
-        const [slotsSnapshot, bookingsSnapshot] = await Promise.all([
-            slotsRef.get(),
-            bookingsRef.get(),
-        ]);
-
-        let slots = [];
-        let bookings = bookingsSnapshot.exists ? bookingsSnapshot.data() : {};
-        const currentTime = new Date(); // 🔥 Get the current system time
-        const todayDateString = currentTime.toISOString().split("T")[0]; // 🔹 Format "YYYY-MM-DD"
+        const slotsSnapshot = await db.collection(`supplycos/${supplycoId}/slots`).get();
+        const bookingsSnapshot = await db.collection(`supplycos/${supplycoId}/bookings`).doc(date).get();
+        
+        const currentTime = new Date();
+        const todayDateString = currentTime.toISOString().split('T')[0];
+        const isToday = date === todayDateString;
+        
+        const slots = [];
+        const bookings = bookingsSnapshot.exists ? bookingsSnapshot.data() : {};
 
         slotsSnapshot.forEach((doc) => {
-            let slotData = doc.data();
-            let slotId = doc.id;
-            let bookedCount = bookings[slotId]?.booked_count || 0;
-            let capacity = slotData.capacity;
-            let endTimeString = slotData.end_time; // `end_time` stored as STRING in Firestore
+            const slotData = doc.data();
+            const slotId = doc.id;
+            const bookedCount = bookings[slotId]?.booked_count || 0;
+            const capacity = slotData.capacity;
+            
+            // Parse the end time
             let endTime = null;
-            let status = "active"; // Default status
-
-            // 🔍 Convert string `end_time` to a Date object
-            if (endTimeString && typeof endTimeString === "string") {
-                try {
-                    const [hours, minutes] = endTimeString.split(":").map(Number);
-                    const slotDate = new Date(date); // Convert `date` param to Date object
-                    endTime = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate(), hours, minutes);
-                } catch (error) {
-                    console.error("Invalid time format:", endTimeString);
-                }
+            try {
+                const [hours, minutes] = slotData.end_time.split(':').map(Number);
+                const slotDate = new Date(date);
+                endTime = new Date(
+                    slotDate.getFullYear(),
+                    slotDate.getMonth(),
+                    slotDate.getDate(),
+                    hours,
+                    minutes
+                );
+            } catch (error) {
+                console.error("Error parsing end time:", error);
             }
 
-            // 🔹 Determine slot status
-            if (date === todayDateString && endTime && endTime < currentTime) {
-                status = "expired"; // ✅ Expired if today & end_time passed
+            // Determine status
+            let status = "active";
+            if (isToday && endTime && endTime < currentTime) {
+                status = "expired";
             } else if (bookedCount >= capacity) {
-                status = "full"; // ✅ Mark as "full" if fully booked
+                status = "full";
             }
 
             slots.push({
                 id: slotId,
                 start_time: slotData.start_time,
-                end_time: endTimeString || "N/A", // Avoid null values
+                end_time: slotData.end_time,
                 capacity,
                 booked_count: bookedCount,
-                status, // ✅ Properly determined slot status
+                status, // Now properly calculated
             });
         });
 
@@ -130,5 +126,3 @@ exports.getSlotsForDate = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
-
-
