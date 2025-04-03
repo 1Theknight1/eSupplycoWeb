@@ -643,3 +643,33 @@ exports.getDeliveryBoyDetails= async (req, res) => {
       res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+//get All feedbacks
+exports.getAllFeedback = async (req, res) => {
+  const { supplycoId } = req.params; // Get supplycoId from request parameters
+
+  if (!supplycoId) {
+    return res.status(400).json({ error: "Supplyco ID is required" });
+  }
+
+  try {
+    const supplycoRef = db.collection("Supplycos").doc(supplycoId);
+    const feedbackRef = supplycoRef.collection("FeedBack");
+
+    const snapshot = await feedbackRef.orderBy("timestamp", "desc").get(); // Order by latest feedback
+
+    if (snapshot.empty) {
+      return res.status(200).json({ message: "No feedback found" });
+    }
+
+    let feedbackList = [];
+    snapshot.forEach((doc) => {
+      feedbackList.push({ id: doc.id, ...doc.data() });
+    });
+
+    res.status(200).json(feedbackList);
+  } catch (error) {
+    console.error("Error fetching feedback:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
