@@ -72,11 +72,11 @@ exports.getSlotsForDate = async (req, res) => {
     try {
         const slotsSnapshot = await db.collection(`supplycos/${supplycoId}/slots`).get();
         const bookingsSnapshot = await db.collection(`supplycos/${supplycoId}/bookings`).doc(date).get();
-        
+
         const currentTime = new Date();
         const todayDateString = currentTime.toISOString().split('T')[0];
         const isToday = date === todayDateString;
-        
+
         const slots = [];
         const bookings = bookingsSnapshot.exists ? bookingsSnapshot.data() : {};
 
@@ -85,57 +85,34 @@ exports.getSlotsForDate = async (req, res) => {
             const slotId = doc.id;
             const bookedCount = bookings[slotId]?.booked_count || 0;
             const capacity = slotData.capacity;
-            
-            // Parse the end time
-            let endTime = null;
             let status = "active";
-            
+
+            // Ensure end_time is in AM/PM format
+            let endTimeStr = slotData.end_time;
+            if (!endTimeStr.includes("AM") && !endTimeStr.includes("PM")) {
+                endTimeStr += " AM"; // Default to AM if missing (this might need adjustment)
+            }
+
             try {
-                // Convert time strings to 24-hour format first
-                let endTimeStr = slotData.end_time;
-                if (endTimeStr.includes("AM") || endTimeStr.includes("PM")) {
-                    const timeFormat = new Intl.DateTimeFormat('en', {
-                        hour: 'numeric',
-                        minute: 'numeric',
-                        hour12: true
-                    });
-                    const date = new Date();
-                    date.setHours(12); // Set to noon to avoid AM/PM confusion
-                    const parsed = timeFormat.formatToParts(date);
-                    // This is just to get the format - actual parsing needs to be done
-                    // For actual parsing, use a library like moment or date-fns
-                    endTimeStr = endTimeStr.replace(" AM", "").replace(" PM", "");
-                }
+                // Convert to Date object
+                const [time, period] = endTimeStr.split(" ");
+                let [hours, minutes] = time.split(":").map(Number);
                 
-                const [hours, minutes] = endTimeStr.split(':').map(Number);
-                const slotDate = new Date(date);
-                endTime = new Date(
-                    slotDate.getFullYear(),
-                    slotDate.getMonth(),
-                    slotDate.getDate(),
-                    hours,
-                    minutes
-                );
+                if (period === "PM" && hours !== 12) hours += 12;  // Convert PM times
+                if (period === "AM" && hours === 12) hours = 0;    // Convert 12 AM to 00:00
 
-                // Fix PM times (add 12 hours except for 12 PM)
-                if (slotData.end_time.includes("PM") && hours !== 12) {
-                    endTime.setHours(endTime.getHours() + 12);
-                }
-                // Fix 12 AM (midnight)
-                if (slotData.end_time.includes("AM") && hours === 12) {
-                    endTime.setHours(0);
-                }
+                // Construct full Date object in UTC
+                const slotEndTime = new Date(`${date}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00.000Z`);
 
-                // Determine status
-                if (isToday && endTime < currentTime) {
+                // Determine slot status
+                if (isToday && slotEndTime < currentTime) {
                     status = "expired";
                 } else if (bookedCount >= capacity) {
                     status = "full";
                 }
             } catch (error) {
                 console.error("Error parsing time:", error);
-                // Default to active if time parsing fails
-                status = "active";
+                status = "active"; // Fallback to active
             }
 
             slots.push({
@@ -144,7 +121,7 @@ exports.getSlotsForDate = async (req, res) => {
                 end_time: slotData.end_time,
                 capacity,
                 booked_count: bookedCount,
-                status, // Now properly calculated
+                status,
             });
         });
 
