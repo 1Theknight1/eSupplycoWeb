@@ -91,17 +91,13 @@ exports.getSlotsForDate = async (req, res) => {
             let status = "active";
 
             try {
-                // Extract hours and minutes from end_time
                 let endTimeStr = slotData.end_time.trim();
-
-                // Check if AM/PM is missing and assume 24-hour format if necessary
-                let is24HourFormat = !endTimeStr.includes("AM") && !endTimeStr.includes("PM");
+                let is24HourFormat = /^[0-9]{2}:[0-9]{2}$/.test(endTimeStr);
                 let period = endTimeStr.includes("AM") ? "AM" : (endTimeStr.includes("PM") ? "PM" : "");
 
-                // Remove AM/PM and split into hours and minutes
-                let [hours, minutes] = endTimeStr.replace(" AM", "").replace(" PM", "").split(":").map(Number);
+                let [hours, minutes] = endTimeStr.replace(/(AM|PM)/g, "").trim().split(":").map(Number);
 
-                // Convert to 24-hour format correctly
+                // Convert to 24-hour format
                 if (!is24HourFormat) {
                     if (period === "PM" && hours !== 12) {
                         hours += 12;
@@ -110,14 +106,18 @@ exports.getSlotsForDate = async (req, res) => {
                     }
                 }
 
-                // Create Date object for slot's end time
+                // Ensure 12:00 PM is correctly converted
+                if (period === "PM" && hours === 12) {
+                    hours = 12;
+                }
+
                 endTime = new Date(date);
-                endTime.setHours(hours, minutes, 0, 0); // Set hours and minutes
+                endTime.setHours(hours, minutes, 0, 0);
 
                 console.log(`Slot: ${slotId}, End Time: ${endTime.toISOString()}, Current Time: ${currentTime.toISOString()}`);
 
                 // Compare timestamps correctly
-                if (isToday && endTime.getTime() <= currentTime.getTime()) {
+                if (isToday && endTime <= currentTime) {
                     status = "expired";
                 } else if (bookedCount >= capacity) {
                     status = "full";
@@ -143,5 +143,3 @@ exports.getSlotsForDate = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
-
-
