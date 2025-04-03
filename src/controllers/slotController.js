@@ -73,8 +73,8 @@ exports.getSlotsForDate = async (req, res) => {
         const slotsSnapshot = await db.collection(`supplycos/${supplycoId}/slots`).get();
         const bookingsSnapshot = await db.collection(`supplycos/${supplycoId}/bookings`).doc(date).get();
         
-        const currentTime = new Date();  // Current time in server timezone
-        const todayDateString = currentTime.toISOString().split('T')[0];
+        const currentTime = new Date();  // Get current time in UTC
+        const todayDateString = new Date().toISOString().split('T')[0];
         const isToday = date === todayDateString;
         
         const slots = [];
@@ -90,7 +90,7 @@ exports.getSlotsForDate = async (req, res) => {
             let status = "active";
             
             try {
-                // Extract end time string
+                // Convert slot end time to 24-hour format
                 let endTimeStr = slotData.end_time;
                 let [timePart, period] = endTimeStr.split(" ");
                 let [hours, minutes] = timePart.split(":").map(Number);
@@ -102,20 +102,13 @@ exports.getSlotsForDate = async (req, res) => {
                     hours = 0;
                 }
 
-                // Create a Date object for the slot's end time
-                const slotDate = new Date(`${date}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
-
-                // Adjust for `12:00 AM` (next day's midnight)
-                if (slotData.end_time === "12:00 AM") {
-                    slotDate.setDate(slotDate.getDate() + 1);
-                }
-
-                endTime = slotDate;
+                // Create Date object for slot's end time (same date as `date`)
+                endTime = new Date(`${date}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00Z`);
 
                 // Debugging logs
-                console.log(`Slot: ${slotId}, End Time: ${endTime.toISOString()}, Current Time: ${currentTime.toISOString()}`);
+                console.log(`Slot: ${slotId}, End Time (UTC): ${endTime.toISOString()}, Current Time (UTC): ${currentTime.toISOString()}`);
 
-                // Ensure both times are in the same **timezone & format**
+                // Compare timestamps correctly
                 if (isToday && endTime.getTime() <= currentTime.getTime()) {
                     status = "expired";
                 } else if (bookedCount >= capacity) {
