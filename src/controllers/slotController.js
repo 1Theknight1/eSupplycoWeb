@@ -88,8 +88,26 @@ exports.getSlotsForDate = async (req, res) => {
             
             // Parse the end time
             let endTime = null;
+            let status = "active";
+            
             try {
-                const [hours, minutes] = slotData.end_time.split(':').map(Number);
+                // Convert time strings to 24-hour format first
+                let endTimeStr = slotData.end_time;
+                if (endTimeStr.includes("AM") || endTimeStr.includes("PM")) {
+                    const timeFormat = new Intl.DateTimeFormat('en', {
+                        hour: 'numeric',
+                        minute: 'numeric',
+                        hour12: true
+                    });
+                    const date = new Date();
+                    date.setHours(12); // Set to noon to avoid AM/PM confusion
+                    const parsed = timeFormat.formatToParts(date);
+                    // This is just to get the format - actual parsing needs to be done
+                    // For actual parsing, use a library like moment or date-fns
+                    endTimeStr = endTimeStr.replace(" AM", "").replace(" PM", "");
+                }
+                
+                const [hours, minutes] = endTimeStr.split(':').map(Number);
                 const slotDate = new Date(date);
                 endTime = new Date(
                     slotDate.getFullYear(),
@@ -98,16 +116,26 @@ exports.getSlotsForDate = async (req, res) => {
                     hours,
                     minutes
                 );
-            } catch (error) {
-                console.error("Error parsing end time:", error);
-            }
 
-            // Determine status
-            let status = "active";
-            if (isToday && endTime && endTime < currentTime) {
-                status = "expired";
-            } else if (bookedCount >= capacity) {
-                status = "full";
+                // Fix PM times (add 12 hours except for 12 PM)
+                if (slotData.end_time.includes("PM") && hours !== 12) {
+                    endTime.setHours(endTime.getHours() + 12);
+                }
+                // Fix 12 AM (midnight)
+                if (slotData.end_time.includes("AM") && hours === 12) {
+                    endTime.setHours(0);
+                }
+
+                // Determine status
+                if (isToday && endTime < currentTime) {
+                    status = "expired";
+                } else if (bookedCount >= capacity) {
+                    status = "full";
+                }
+            } catch (error) {
+                console.error("Error parsing time:", error);
+                // Default to active if time parsing fails
+                status = "active";
             }
 
             slots.push({
